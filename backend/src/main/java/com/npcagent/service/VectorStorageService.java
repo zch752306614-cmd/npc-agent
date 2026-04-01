@@ -1,10 +1,11 @@
 package com.npcagent.service;
 
-import org.apache.commons.math3.linear.ArrayRealVector;
-import org.apache.commons.math3.linear.RealVector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -16,23 +17,19 @@ import java.util.Map;
  * 3. 提供向量检索和匹配功能
  *
  * 实现说明：
- * - 使用内存存储模拟向量数据库
- * - 使用余弦相似度计算语义相似度
+ * - 使用Milvus向量数据库进行向量存储和检索
  * - 支持向量的添加、更新和检索
+ * - 提供基于语义相似度的匹配功能
  */
 @Service
 public class VectorStorageService {
 
-    /**
-     * 向量存储
-     * Key: 节点ID
-     * Value: 语义向量
-     */
-    private final Map<String, RealVector> vectorStorage;
+    private static final Logger logger = LoggerFactory.getLogger(VectorStorageService.class);
 
-    public VectorStorageService() {
-        this.vectorStorage = new HashMap<>();
-        // 初始化一些示例向量
+    private final MilvusService milvusService;
+
+    public VectorStorageService(MilvusService milvusService) {
+        this.milvusService = milvusService;
         initializeVectors();
     }
 
@@ -40,67 +37,66 @@ public class VectorStorageService {
      * 初始化示例向量
      */
     private void initializeVectors() {
-        // 为每个剧情节点创建示例向量
-        // 实际应用中，这些向量应该通过嵌入模型生成
-        
-        // 村庄节点向量
-        vectorStorage.put("village_001", createVector(new double[]{0.8, 0.6, 0.2, 0.1, 0.9}));
-        vectorStorage.put("village_002", createVector(new double[]{0.6, 0.8, 0.9, 0.3, 0.2}));
-        
-        // 山脉节点向量
-        vectorStorage.put("mountain_001", createVector(new double[]{0.3, 0.5, 0.7, 0.9, 0.4}));
-        vectorStorage.put("mountain_002", createVector(new double[]{0.5, 0.3, 0.6, 0.8, 0.7}));
-        
-        // 洞穴节点向量
-        vectorStorage.put("cave_001", createVector(new double[]{0.9, 0.7, 0.4, 0.2, 0.5}));
-        vectorStorage.put("cave_002", createVector(new double[]{0.7, 0.9, 0.5, 0.6, 0.3}));
+        if (!milvusService.isConnected()) {
+            logger.warn("Milvus service is not connected, skipping vector initialization");
+            return;
+        }
+
+        Map<String, String> nodeContents = new HashMap<>();
+        nodeContents.put("village_001", "修仙村庄，新手玩家的起点，可以在这里拜师学艺");
+        nodeContents.put("village_002", "村庄广场，村民聚集的地方，可以接取任务");
+        nodeContents.put("mountain_001", "青云山脉，修仙者的圣地，蕴含丰富的灵气");
+        nodeContents.put("mountain_002", "山顶秘境，传说中有仙人留下的宝藏");
+        nodeContents.put("cave_001", "神秘洞穴，充满未知的危险和机遇");
+        nodeContents.put("cave_002", "洞穴深处，据说藏有上古修仙者的遗物");
+
+        Map<String, double[]> nodeVectors = new HashMap<>();
+        nodeVectors.put("village_001", new double[]{0.8, 0.6, 0.2, 0.1, 0.9, 0.3, 0.5, 0.7});
+        nodeVectors.put("village_002", new double[]{0.6, 0.8, 0.9, 0.3, 0.2, 0.4, 0.6, 0.8});
+        nodeVectors.put("mountain_001", new double[]{0.3, 0.5, 0.7, 0.9, 0.4, 0.6, 0.8, 0.2});
+        nodeVectors.put("mountain_002", new double[]{0.5, 0.3, 0.6, 0.8, 0.7, 0.9, 0.1, 0.3});
+        nodeVectors.put("cave_001", new double[]{0.9, 0.7, 0.4, 0.2, 0.5, 0.1, 0.3, 0.9});
+        nodeVectors.put("cave_002", new double[]{0.7, 0.9, 0.5, 0.6, 0.3, 0.2, 0.4, 0.6});
+
+        for (Map.Entry<String, String> entry : nodeContents.entrySet()) {
+            String nodeId = entry.getKey();
+            String content = entry.getValue();
+            double[] vector = nodeVectors.get(nodeId);
+            
+            if (vector != null) {
+                List<Float> floatVector = convertToFloatList(vector);
+                milvusService.insertVector(nodeId, content, floatVector);
+            }
+        }
+
+        logger.info("Initialized {} vectors in Milvus", nodeContents.size());
     }
 
     /**
-     * 创建向量
+     * 将double数组转换为Float列表
      *
-     * @param values 向量值
-     * @return 向量对象
+     * @param values double数组
+     * @return Float列表
      */
-    private RealVector createVector(double[] values) {
-        return new ArrayRealVector(values);
+    private List<Float> convertToFloatList(double[] values) {
+        return java.util.Arrays.stream(values)
+                .mapToObj(d -> (float) d)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     /**
      * 添加向量
      *
      * @param nodeId 节点ID
+     * @param content 节点内容
      * @param vector 向量
      */
-    public void addVector(String nodeId, RealVector vector) {
-        vectorStorage.put(nodeId, vector);
-    }
-
-    /**
-     * 获取向量
-     *
-     * @param nodeId 节点ID
-     * @return 向量
-     */
-    public RealVector getVector(String nodeId) {
-        return vectorStorage.get(nodeId);
-    }
-
-    /**
-     * 计算两个向量的余弦相似度
-     *
-     * @param vector1 向量1
-     * @param vector2 向量2
-     * @return 相似度分数（0-1）
-     */
-    public double calculateSimilarity(RealVector vector1, RealVector vector2) {
-        if (vector1 == null || vector2 == null) {
-            return 0.0;
-        }
-        try {
-            return vector1.cosine(vector2);
-        } catch (Exception e) {
-            return 0.0;
+    public void addVector(String nodeId, String content, List<Float> vector) {
+        if (milvusService.isConnected()) {
+            milvusService.insertVector(nodeId, content, vector);
+            logger.debug("Added vector for node: {}", nodeId);
+        } else {
+            logger.warn("Milvus service is not connected, cannot add vector");
         }
     }
 
@@ -110,21 +106,29 @@ public class VectorStorageService {
      * @param inputVector 输入向量
      * @return 最相似的节点ID和相似度
      */
-    public Map<String, Object> findMostSimilar(RealVector inputVector) {
-        double maxSimilarity = -1.0;
-        String mostSimilarNode = null;
-
-        for (Map.Entry<String, RealVector> entry : vectorStorage.entrySet()) {
-            double similarity = calculateSimilarity(inputVector, entry.getValue());
-            if (similarity > maxSimilarity) {
-                maxSimilarity = similarity;
-                mostSimilarNode = entry.getKey();
-            }
+    public Map<String, Object> findMostSimilar(List<Float> inputVector) {
+        if (!milvusService.isConnected()) {
+            logger.warn("Milvus service is not connected, returning empty result");
+            Map<String, Object> result = new HashMap<>();
+            result.put("nodeId", null);
+            result.put("similarity", 0.0);
+            return result;
         }
 
+        List<Map<String, Object>> searchResults = milvusService.searchSimilarVectors(inputVector, 1);
+
+        if (searchResults.isEmpty()) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("nodeId", null);
+            result.put("similarity", 0.0);
+            return result;
+        }
+
+        Map<String, Object> firstResult = searchResults.get(0);
         Map<String, Object> result = new HashMap<>();
-        result.put("nodeId", mostSimilarNode);
-        result.put("similarity", maxSimilarity);
+        result.put("nodeId", firstResult.get("nodeId"));
+        result.put("similarity", firstResult.get("score"));
+        result.put("content", firstResult.get("content"));
         return result;
     }
 
@@ -134,38 +138,40 @@ public class VectorStorageService {
      * @param text 输入文本
      * @return 向量
      */
-    public RealVector generateVector(String text) {
-        // 简单的文本向量生成
-        // 实际应用中，应该使用预训练的嵌入模型
-        
-        // 基于关键词的简单向量生成
-        double[] vector = new double[5];
-        
-        // 关键词权重
+    public List<Float> generateVector(String text) {
+        double[] vector = new double[8];
+
         Map<String, double[]> keywordWeights = new HashMap<>();
-        keywordWeights.put("修仙", new double[]{0.9, 0.2, 0.1, 0.3, 0.8});
-        keywordWeights.put("拜师", new double[]{0.8, 0.6, 0.2, 0.1, 0.9});
-        keywordWeights.put("灵根", new double[]{0.6, 0.8, 0.9, 0.3, 0.2});
-        keywordWeights.put("青云门", new double[]{0.3, 0.5, 0.7, 0.9, 0.4});
-        keywordWeights.put("秘境", new double[]{0.9, 0.7, 0.4, 0.2, 0.5});
-        
-        // 计算向量
+        keywordWeights.put("修仙", new double[]{0.9, 0.2, 0.1, 0.3, 0.8, 0.5, 0.6, 0.4});
+        keywordWeights.put("拜师", new double[]{0.8, 0.6, 0.2, 0.1, 0.9, 0.3, 0.7, 0.5});
+        keywordWeights.put("灵根", new double[]{0.6, 0.8, 0.9, 0.3, 0.2, 0.4, 0.8, 0.6});
+        keywordWeights.put("青云门", new double[]{0.3, 0.5, 0.7, 0.9, 0.4, 0.6, 0.2, 0.8});
+        keywordWeights.put("秘境", new double[]{0.9, 0.7, 0.4, 0.2, 0.5, 0.1, 0.9, 0.3});
+        keywordWeights.put("村庄", new double[]{0.8, 0.6, 0.2, 0.1, 0.9, 0.3, 0.5, 0.7});
+        keywordWeights.put("山脉", new double[]{0.3, 0.5, 0.7, 0.9, 0.4, 0.6, 0.8, 0.2});
+        keywordWeights.put("洞穴", new double[]{0.9, 0.7, 0.4, 0.2, 0.5, 0.1, 0.3, 0.9});
+
         for (Map.Entry<String, double[]> entry : keywordWeights.entrySet()) {
             if (text.contains(entry.getKey())) {
-                for (int i = 0; i < vector.length; i++) {
-                    vector[i] += entry.getValue()[i];
+                double[] weights = entry.getValue();
+                for (int i = 0; i < vector.length && i < weights.length; i++) {
+                    vector[i] += weights[i];
                 }
             }
         }
-        
-        // 归一化
-        double norm = new ArrayRealVector(vector).getNorm();
+
+        double norm = 0.0;
+        for (double v : vector) {
+            norm += v * v;
+        }
+        norm = Math.sqrt(norm);
+
         if (norm > 0) {
             for (int i = 0; i < vector.length; i++) {
                 vector[i] /= norm;
             }
         }
-        
-        return createVector(vector);
+
+        return convertToFloatList(vector);
     }
 }

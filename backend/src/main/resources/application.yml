@@ -41,6 +41,13 @@ mybatis-plus:
       write-dates-as-timestamps: false
     time-zone: UTC
 
+milvus:
+  host: localhost
+  port: 19530
+  database: npcagent
+  collection-name: npc_agent_vectors
+  embedding-dimension: 768
+
 logging:
   level:
     com.npcagent: DEBUG
