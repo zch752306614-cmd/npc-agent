@@ -1,346 +1,540 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import {
+  dialogueApi,
+  explorationApi,
+  combatApi,
+  treasureHuntApi,
+  inventoryApi,
+  storyApi
+} from './api/gameApi.js';
+
+// 玩家ID（临时使用默认值）
+const playerId = ref('player_001');
 
 // 游戏状态
 const gameState = ref({
-  scene: 'village',
   player: {
     name: '凡人',
     level: 1,
-    cultivation: '练气期',
-    hp: 100,
-    mp: 50,
-    inventory: []
+    cultivationLevel: 0,
+    realm: '凡人',
+    health: 100,
+    maxHealth: 100,
+    spiritualPower: 50,
+    maxSpiritualPower: 100,
+    attack: 10,
+    defense: 5,
+    experience: 0,
+    currentScene: 'village'
   },
-  npc: {
-    name: '老者',
-    dialogues: [],
-    currentDialogue: 0
+  currentNpc: {
+    code: 'elder',
+    name: '老者'
   },
-  freeInput: '',
+  dialogueOptions: [],
   dialogueHistory: [],
+  dialogueType: 'fixed', // 'fixed' or 'free'
   loading: false,
-  showExploreResult: false,
-  showStatus: false,
-  showInventory: false,
-  exploreResult: {
-    title: '',
-    description: '',
-    items: []
-  }
+  currentBattle: null,
+  inventory: [],
+  storyProgress: null
 });
 
-// API基础URL
-const API_BASE_URL = 'http://localhost:8080/api';
+// 弹窗状态
+const showModals = ref({
+  explore: false,
+  status: false,
+  inventory: false,
+  combat: false,
+  treasure: false,
+  story: false
+});
 
-// 加载NPC对话
-const loadNpcDialogues = async () => {
-  console.log('开始加载NPC对话');
+// 探索结果
+const exploreResult = ref({
+  title: '',
+  description: '',
+  eventType: '',
+  reward: ''
+});
+
+// 战斗状态
+const battleState = ref({
+  battleId: null,
+  playerHealth: 100,
+  monsterHealth: 100,
+  turn: 1,
+  logs: []
+});
+
+// 寻宝结果
+const treasureResult = ref({
+  location: '',
+  reward: '',
+  rarity: ''
+});
+
+// 场景名称映射
+const sceneNames = {
+  village: '青牛镇',
+  mountain: '青云山',
+  cave: '神秘洞穴'
+};
+
+// 当前场景名称
+const currentSceneName = computed(() => {
+  return sceneNames[gameState.value.player.currentScene] || '未知地点';
+});
+
+// 加载对话选项
+const loadDialogueOptions = async () => {
   try {
-    const url = `${API_BASE_URL}/npcs/${gameState.value.npc.name}/dialogues`;
-    console.log('加载对话URL:', url);
-    const response = await fetch(url);
-    console.log('加载对话响应状态:', response.status);
-    if (response.ok) {
-      const dialogues = await response.json();
-      console.log('加载对话响应数据:', dialogues);
-      gameState.value.npc.dialogues = dialogues;
-      // 初始化对话历史
-      if (dialogues.length > 0) {
-        gameState.value.dialogueHistory.push({
-          speaker: 'npc',
-          text: dialogues[0].text
-        });
-        console.log('初始化对话历史:', dialogues[0].text);
-      }
-    } else {
-      console.log('加载对话失败:', response.statusText);
-      //  fallback to local dialogues
-      gameState.value.npc.dialogues = [
-        {
-          id: 1,
-          text: '年轻人，你是第一次来青牛镇吧？',
-          options: [
-            '是的，前辈',
-            '我是来拜师学艺的',
-            '请问这里有修仙门派吗？'
-          ]
-        }
-      ];
-      gameState.value.dialogueHistory.push({
-        speaker: 'npc',
-        text: '年轻人，你是第一次来青牛镇吧？'
-      });
-    }
+    gameState.value.loading = true;
+    const options = await dialogueApi.getDialogueOptions(
+      gameState.value.currentNpc.code,
+      playerId.value
+    );
+    gameState.value.dialogueOptions = options;
   } catch (error) {
-    console.error('Failed to load dialogues:', error);
-    //  fallback to local dialogues
-    gameState.value.npc.dialogues = [
+    console.error('加载对话选项失败:', error);
+    // 使用默认选项
+    gameState.value.dialogueOptions = [
       {
-        id: 1,
-        text: '年轻人，你是第一次来青牛镇吧？',
-        options: [
-          '是的，前辈',
-          '我是来拜师学艺的',
-          '请问这里有修仙门派吗？'
-        ]
+        optionId: 'option1',
+        text: '我想拜师修仙',
+        type: 'normal',
+        available: true
+      },
+      {
+        optionId: 'option2',
+        text: '请问灵根测试在哪里？',
+        type: 'normal',
+        available: true
       }
     ];
-    gameState.value.dialogueHistory.push({
-      speaker: 'npc',
-      text: '年轻人，你是第一次来青牛镇吧？'
-    });
+  } finally {
+    gameState.value.loading = false;
   }
 };
 
-// 选择对话选项
-const selectOption = async (option) => {
-  console.log('选择选项:', option);
+// 选择固定选项
+const selectFixedOption = async (optionId) => {
   try {
-    // 创建新的对话历史，包含玩家的新消息
-    const newMessage = {
-      speaker: 'player',
-      text: option
-    };
-    
-    // 准备发送给后端的对话历史
-    const requestHistory = [...gameState.value.dialogueHistory, newMessage];
-    
-    // 将玩家消息添加到对话历史
-    gameState.value.dialogueHistory.push(newMessage);
-    
     gameState.value.loading = true;
-    console.log('设置loading为true');
     
-    console.log('开始调用API');
-    // 调用后端API获取回复
-    const url = `${API_BASE_URL}/npcs/${gameState.value.npc.name}/chat`;
-    console.log('API URL:', url);
-    
-    const requestData = {
-      input: option,
-      history: requestHistory
-    };
-    console.log('请求数据:', requestData);
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestData)
+    // 添加玩家消息到历史
+    const selectedOption = gameState.value.dialogueOptions.find(
+      opt => opt.optionId === optionId
+    );
+    gameState.value.dialogueHistory.push({
+      speaker: 'player',
+      text: selectedOption.text
     });
     
-    console.log('API响应状态:', response.status);
+    // 调用后端API
+    const result = await dialogueApi.handleFixedOption(
+      gameState.value.currentNpc.code,
+      optionId,
+      playerId.value
+    );
     
-    if (response.ok) {
-      const data = await response.json();
-      console.log('API响应数据:', data);
-      gameState.value.dialogueHistory.push({
-        speaker: 'npc',
-        text: data.response
-      });
+    // 添加NPC回复到历史
+    gameState.value.dialogueHistory.push({
+      speaker: 'npc',
+      text: result.npcResponse
+    });
+    
+    // 更新对话选项
+    if (result.nextOptions && result.nextOptions.length > 0) {
+      gameState.value.dialogueOptions = result.nextOptions;
+      gameState.value.dialogueType = 'fixed';
     } else {
-      console.log('API响应失败:', response.statusText);
-      //  fallback response
-      gameState.value.dialogueHistory.push({
-        speaker: 'npc',
-        text: '不错，年轻人有志向。青牛镇附近有一个青云门，你可以去那里试试。'
-      });
+      gameState.value.dialogueType = 'free';
+    }
+    
+    // 显示奖励
+    if (result.rewards && result.rewards.length > 0) {
+      alert(`获得奖励：\n${result.rewards.join('\n')}`);
     }
   } catch (error) {
-    console.error('Chat error:', error);
-    //  fallback response
-    gameState.value.dialogueHistory.push({
-      speaker: 'npc',
-      text: '不错，年轻人有志向。青牛镇附近有一个青云门，你可以去那里试试。'
-    });
+    console.error('处理固定选项失败:', error);
+    alert('对话处理失败，请重试');
   } finally {
-    console.log('设置loading为false');
     gameState.value.loading = false;
-    gameState.value.npc.currentDialogue++;
-    console.log('对话索引递增:', gameState.value.npc.currentDialogue);
-    
-    // 如果对话结束，循环回第一条对话
-    if (gameState.value.npc.currentDialogue >= gameState.value.npc.dialogues.length) {
-      gameState.value.npc.currentDialogue = 0;
-      console.log('对话循环回第一条');
-    }
   }
 };
 
-// 获取场景名称
-const getSceneName = (sceneKey) => {
-  const scenes = {
-    'village': '青牛镇',
-    'mountain': '青云山',
-    'cave': '神秘洞穴'
-  };
-  return scenes[sceneKey] || '未知地点';
-};
-
-// 探索当前区域
-const exploreArea = () => {
-  const sceneData = {
-    village: {
-      title: '青牛镇探索',
-      description: '你仔细观察了青牛镇的环境。这里是一个宁静的小山村，青石板铺成的小路两旁是古朴的民居。远处可以看到一位老者在路边休息，镇子东边隐约有一座废弃的石台微微发光...',
-      items: ['发现：聚灵台线索']
-    },
-    mountain: {
-      title: '青云山探索',
-      description: '你站在青云山脚下，云雾缭绕，山势险峻。山路上不时有身着道袍的修士来往。隐约可以看见山顶有一座宏伟的宫殿...',
-      items: []
-    },
-    cave: {
-      title: '神秘洞穴探索',
-      description: '洞穴内部幽暗深邃，墙壁上刻满了古老的符文。传说这里藏有上古传承，但也危机四伏...',
-      items: []
-    }
-  };
+// 发送自由输入
+const freeInputText = ref('');
+const sendFreeInput = async () => {
+  if (!freeInputText.value.trim()) return;
   
-  const currentScene = sceneData[gameState.value.scene] || sceneData.village;
-  gameState.value.exploreResult = currentScene;
-  gameState.value.showExploreResult = true;
-};
-
-// 查看角色状态
-const viewStatus = () => {
-  gameState.value.showStatus = true;
-};
-
-// 查看背包
-const viewInventory = () => {
-  gameState.value.showInventory = true;
+  try {
+    gameState.value.loading = true;
+    
+    // 添加玩家消息到历史
+    gameState.value.dialogueHistory.push({
+      speaker: 'player',
+      text: freeInputText.value
+    });
+    
+    // 准备对话历史
+    const history = gameState.value.dialogueHistory.map(msg => ({
+      speaker: msg.speaker,
+      text: msg.text
+    }));
+    
+    // 调用后端API
+    const result = await dialogueApi.handleFreeInput(
+      gameState.value.currentNpc.code,
+      freeInputText.value,
+      history,
+      playerId.value
+    );
+    
+    // 添加NPC回复到历史
+    gameState.value.dialogueHistory.push({
+      speaker: 'npc',
+      text: result.npcResponse
+    });
+    
+    // 清空输入
+    freeInputText.value = '';
+    
+    // 如果触发了剧情节点，切换回固定选项模式
+    if (result.storyAdvance && result.nextOptions) {
+      gameState.value.dialogueOptions = result.nextOptions;
+      gameState.value.dialogueType = 'fixed';
+    }
+  } catch (error) {
+    console.error('发送自由输入失败:', error);
+    alert('对话处理失败，请重试');
+  } finally {
+    gameState.value.loading = false;
+  }
 };
 
 // 切换场景
-const changeScene = () => {
-  const scenes = [
-    { key: 'village', name: '青牛镇' },
-    { key: 'mountain', name: '青云山' },
-    { key: 'cave', name: '神秘洞穴' }
-  ];
-  
-  const currentIndex = scenes.findIndex(s => s.key === gameState.value.scene);
-  const nextIndex = (currentIndex + 1) % scenes.length;
-  const nextScene = scenes[nextIndex];
-  
-  gameState.value.scene = nextScene.key;
-  
-  // 更新当前NPC
-  if (nextScene.key === 'village') {
-    gameState.value.npc.name = '老者';
-  } else if (nextScene.key === 'mountain') {
-    gameState.value.npc.name = '掌门';
-  } else {
-    gameState.value.npc.name = '神秘老人';
-  }
-  
-  // 重置对话状态
-  gameState.value.npc.currentDialogue = 0;
-  gameState.value.dialogueHistory = [];
-  loadNpcDialogues();
-};
-
-// 发送自由对话
-const sendFreeInput = async () => {
-  if (gameState.value.freeInput.trim()) {
-    gameState.value.dialogueHistory.push({
-      speaker: 'player',
-      text: gameState.value.freeInput
-    });
-    
+const changeScene = async (sceneCode) => {
+  try {
     gameState.value.loading = true;
-    try {
-      // 调用后端API获取AI回复
-      const response = await fetch(`${API_BASE_URL}/npcs/${gameState.value.npc.name}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          input: gameState.value.freeInput,
-          history: gameState.value.dialogueHistory
-        })
-      });
+    const result = await explorationApi.changeScene(playerId.value, sceneCode);
+    
+    if (result.success) {
+      gameState.value.player.currentScene = sceneCode;
       
-      if (response.ok) {
-        const data = await response.json();
-        gameState.value.dialogueHistory.push({
-          speaker: 'npc',
-          text: data.response
-        });
-      } else {
-        //  fallback response
-        gameState.value.dialogueHistory.push({
-          speaker: 'npc',
-          text: '你的问题很有趣。不过现在最重要的是找到修仙的门路，青云门会是你不错的选择。'
-        });
+      // 更新NPC
+      if (result.npcs && result.npcs.length > 0) {
+        gameState.value.currentNpc.code = result.npcs[0];
+        // 根据NPC代码设置名称
+        const npcNames = {
+          elder: '老者',
+          sectMaster: '掌门',
+          mysteriousElder: '神秘老者'
+        };
+        gameState.value.currentNpc.name = npcNames[result.npcs[0]] || '未知NPC';
       }
-    } catch (error) {
-      console.error('Chat error:', error);
-      //  fallback response
-      gameState.value.dialogueHistory.push({
-        speaker: 'npc',
-        text: '你的问题很有趣。不过现在最重要的是找到修仙的门路，青云门会是你不错的选择。'
-      });
-    } finally {
-      gameState.value.loading = false;
-      gameState.value.freeInput = '';
+      
+      // 重置对话
+      gameState.value.dialogueHistory = [];
+      gameState.value.dialogueType = 'fixed';
+      await loadDialogueOptions();
+      
+      alert(`已切换到：${result.sceneName}`);
     }
+  } catch (error) {
+    console.error('切换场景失败:', error);
+    alert('切换场景失败，请重试');
+  } finally {
+    gameState.value.loading = false;
   }
 };
 
-// 场景背景图片
-const sceneBackgrounds = {
-  village: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=ancient%20chinese%20village%20with%20traditional%20houses%2C%20mountain%20background%2C%20peaceful%20atmosphere&image_size=landscape_16_9',
-  mountain: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=misty%20mountain%20with%20ancient%20temple%2C%20chinese%20style%2C%20ethereal%20atmosphere&image_size=landscape_16_9'
+// 探索场景
+const exploreScene = async () => {
+  try {
+    gameState.value.loading = true;
+    const result = await explorationApi.exploreScene(
+      playerId.value,
+      gameState.value.player.currentScene,
+      Math.floor(Math.random() * 100),
+      Math.floor(Math.random() * 100)
+    );
+    
+    if (result.success) {
+      exploreResult.value = {
+        title: getEventTitle(result.eventType),
+        description: result.eventDescription,
+        eventType: result.eventType,
+        reward: result.reward || ''
+      };
+      showModals.value.explore = true;
+      
+      // 如果遇到怪物，自动开始战斗
+      if (result.eventType === 'monster') {
+        // 这里可以自动触发战斗
+        console.log('遇到怪物：', result.monster);
+      }
+    }
+  } catch (error) {
+    console.error('探索失败:', error);
+    alert('探索失败，请重试');
+  } finally {
+    gameState.value.loading = false;
+  }
 };
 
+// 获取事件标题
+const getEventTitle = (eventType) => {
+  const titles = {
+    resource: '发现资源',
+    monster: '遭遇怪物',
+    exploration: '探索发现'
+  };
+  return titles[eventType] || '探索结果';
+};
+
+// 开始战斗
+const startCombat = async (monsterName) => {
+  try {
+    gameState.value.loading = true;
+    const result = await combatApi.startCombat(playerId.value, monsterName);
+    
+    if (result.success) {
+      battleState.value = {
+        battleId: result.battleId,
+        playerHealth: result.player.health,
+        monsterHealth: result.monster.health,
+        turn: result.turn,
+        logs: [`战斗开始！你遇到了 ${result.monster.name}`]
+      };
+      showModals.value.combat = true;
+    }
+  } catch (error) {
+    console.error('开始战斗失败:', error);
+    alert('开始战斗失败，请重试');
+  } finally {
+    gameState.value.loading = false;
+  }
+};
+
+// 执行战斗回合
+const executeCombatTurn = async (action) => {
+  try {
+    gameState.value.loading = true;
+    const result = await combatApi.executeTurn(
+      battleState.value.battleId,
+      action
+    );
+    
+    if (result.success) {
+      battleState.value.playerHealth = result.playerHealth;
+      battleState.value.monsterHealth = result.monsterHealth;
+      battleState.value.turn = result.turn;
+      battleState.value.logs.push(result.playerAction);
+      battleState.value.logs.push(result.monsterAction);
+      
+      // 检查战斗是否结束
+      if (result.battleStatus === 'ended') {
+        await endCombat('player');
+      }
+    }
+  } catch (error) {
+    console.error('执行战斗回合失败:', error);
+    alert('战斗操作失败，请重试');
+  } finally {
+    gameState.value.loading = false;
+  }
+};
+
+// 结束战斗
+const endCombat = async (winner) => {
+  try {
+    gameState.value.loading = true;
+    const result = await combatApi.endCombat(
+      battleState.value.battleId,
+      winner
+    );
+    
+    if (result.success) {
+      battleState.value.logs.push(result.message);
+      if (result.rewards) {
+        battleState.value.logs.push(`获得奖励：${result.rewards.join(', ')}`);
+      }
+      
+      // 延迟关闭战斗窗口
+      setTimeout(() => {
+        showModals.value.combat = false;
+      }, 2000);
+    }
+  } catch (error) {
+    console.error('结束战斗失败:', error);
+  } finally {
+    gameState.value.loading = false;
+  }
+};
+
+// 开始寻宝
+const startTreasureHunt = async () => {
+  try {
+    gameState.value.loading = true;
+    const result = await treasureHuntApi.startTreasureHunt(
+      playerId.value,
+      gameState.value.player.currentScene
+    );
+    
+    if (result.success) {
+      treasureResult.value = {
+        location: result.location,
+        reward: result.reward,
+        rarity: result.rarity
+      };
+      showModals.value.treasure = true;
+    }
+  } catch (error) {
+    console.error('寻宝失败:', error);
+    alert('寻宝失败，请重试');
+  } finally {
+    gameState.value.loading = false;
+  }
+};
+
+// 加载背包
+const loadInventory = async () => {
+  try {
+    gameState.value.loading = true;
+    const items = await inventoryApi.getInventory(playerId.value);
+    gameState.value.inventory = items;
+    showModals.value.inventory = true;
+  } catch (error) {
+    console.error('加载背包失败:', error);
+    alert('加载背包失败，请重试');
+  } finally {
+    gameState.value.loading = false;
+  }
+};
+
+// 使用物品
+const useItem = async (itemId) => {
+  try {
+    gameState.value.loading = true;
+    const result = await inventoryApi.useItem(playerId.value, itemId);
+    
+    if (result.success) {
+      alert(result.message);
+      // 重新加载背包
+      await loadInventory();
+    }
+  } catch (error) {
+    console.error('使用物品失败:', error);
+    alert('使用物品失败，请重试');
+  } finally {
+    gameState.value.loading = false;
+  }
+};
+
+// 加载剧情进度
+const loadStoryProgress = async () => {
+  try {
+    gameState.value.loading = true;
+    const progress = await storyApi.getStoryProgress(playerId.value);
+    gameState.value.storyProgress = progress;
+    showModals.value.story = true;
+  } catch (error) {
+    console.error('加载剧情进度失败:', error);
+    alert('加载剧情进度失败，请重试');
+  } finally {
+    gameState.value.loading = false;
+  }
+};
+
+// 初始化
 onMounted(() => {
-  loadNpcDialogues();
+  loadDialogueOptions();
 });
 </script>
 
 <template>
   <div class="game-container">
-    <!-- 场景展示 -->
-    <div class="scene" :style="{ backgroundImage: `url(${sceneBackgrounds[gameState.scene]})` }"></div>
+    <!-- 场景背景 -->
+    <div class="scene-background" :class="gameState.player.currentScene">
+      <div class="scene-overlay"></div>
+    </div>
     
-    <!-- 角色状态 -->
-    <div class="player-status">
+    <!-- 玩家状态栏 -->
+    <div class="player-status-bar">
       <div class="status-item">
         <span class="label">姓名：</span>
         <span class="value">{{ gameState.player.name }}</span>
       </div>
       <div class="status-item">
         <span class="label">境界：</span>
-        <span class="value">{{ gameState.player.cultivation }}</span>
+        <span class="value">{{ gameState.player.realm }}</span>
       </div>
       <div class="status-item">
         <span class="label">等级：</span>
         <span class="value">{{ gameState.player.level }}</span>
       </div>
       <div class="status-item">
-        <span class="label">气血：</span>
-        <span class="value">{{ gameState.player.hp }}/100</span>
+        <span class="label">生命：</span>
+        <span class="value">{{ gameState.player.health }}/{{ gameState.player.maxHealth }}</span>
       </div>
       <div class="status-item">
-        <span class="label">法力：</span>
-        <span class="value">{{ gameState.player.mp }}/50</span>
+        <span class="label">灵力：</span>
+        <span class="value">{{ gameState.player.spiritualPower }}/{{ gameState.player.maxSpiritualPower }}</span>
       </div>
+      <div class="status-item">
+        <span class="label">场景：</span>
+        <span class="value">{{ currentSceneName }}</span>
+      </div>
+    </div>
+    
+    <!-- 游戏操作按钮 -->
+    <div class="game-actions">
+      <button class="action-btn" @click="exploreScene" :disabled="gameState.loading">
+        <span class="icon">🔍</span> 探索
+      </button>
+      <button class="action-btn" @click="showModals.status = true">
+        <span class="icon">📊</span> 状态
+      </button>
+      <button class="action-btn" @click="loadInventory" :disabled="gameState.loading">
+        <span class="icon">🎒</span> 背包
+      </button>
+      <button class="action-btn" @click="startTreasureHunt" :disabled="gameState.loading">
+        <span class="icon">💎</span> 寻宝
+      </button>
+      <button class="action-btn" @click="loadStoryProgress" :disabled="gameState.loading">
+        <span class="icon">📖</span> 剧情
+      </button>
+    </div>
+    
+    <!-- 场景切换按钮 -->
+    <div class="scene-switcher">
+      <button
+        v-for="(name, code) in sceneNames"
+        :key="code"
+        class="scene-btn"
+        :class="{ active: gameState.player.currentScene === code }"
+        @click="changeScene(code)"
+        :disabled="gameState.loading || gameState.player.currentScene === code"
+      >
+        {{ name }}
+      </button>
     </div>
     
     <!-- 对话区域 -->
     <div class="dialogue-container">
+      <!-- 对话历史 -->
       <div class="dialogue-history">
-        <div 
-          v-for="(msg, index) in gameState.dialogueHistory" 
+        <div
+          v-for="(msg, index) in gameState.dialogueHistory"
           :key="index"
           :class="['dialogue-message', msg.speaker]"
         >
-          <div class="speaker">{{ msg.speaker === 'npc' ? gameState.npc.name : gameState.player.name }}：</div>
+          <div class="speaker">
+            {{ msg.speaker === 'npc' ? gameState.currentNpc.name : gameState.player.name }}：
+          </div>
           <div class="text">{{ msg.text }}</div>
         </div>
         <div v-if="gameState.loading" class="loading">
@@ -350,93 +544,160 @@ onMounted(() => {
       </div>
       
       <!-- 固定选项 -->
-      <div class="dialogue-options" v-if="gameState.npc.currentDialogue < gameState.npc.dialogues.length">
-        <button 
-          v-for="(option, index) in gameState.npc.dialogues[gameState.npc.currentDialogue].options" 
-          :key="index"
+      <div v-if="gameState.dialogueType === 'fixed'" class="dialogue-options">
+        <button
+          v-for="option in gameState.dialogueOptions"
+          :key="option.optionId"
           class="option-button"
-          @click="selectOption(option)"
-          :disabled="gameState.loading"
+          @click="selectFixedOption(option.optionId)"
+          :disabled="gameState.loading || !option.available"
         >
-          {{ option }}
+          {{ option.text }}
         </button>
       </div>
       
-      <!-- 自由对话输入 -->
-      <div class="free-input" v-else>
-        <input 
-          type="text" 
-          v-model="gameState.freeInput"
+      <!-- 自由输入 -->
+      <div v-else class="free-input">
+        <input
+          type="text"
+          v-model="freeInputText"
           placeholder="输入你想说的话..."
           @keyup.enter="sendFreeInput"
           :disabled="gameState.loading"
         />
-        <button class="send-button" @click="sendFreeInput" :disabled="gameState.loading">
+        <button
+          class="send-button"
+          @click="sendFreeInput"
+          :disabled="gameState.loading || !freeInputText.trim()"
+        >
           {{ gameState.loading ? '发送中...' : '发送' }}
         </button>
       </div>
     </div>
     
-    <!-- 游戏操作区 -->
-    <div class="game-actions">
-      <button class="action-btn" @click="exploreArea" title="探索当前区域">
-        <span class="icon">🔍</span> 探索
-      </button>
-      <button class="action-btn" @click="viewStatus" title="查看角色状态">
-        <span class="icon">📊</span> 状态
-      </button>
-      <button class="action-btn" @click="viewInventory" title="查看背包">
-        <span class="icon">🎒</span> 背包
-      </button>
-      <button class="action-btn" @click="changeScene" title="切换场景">
-        <span class="icon">🚶</span> 移动
-      </button>
-    </div>
-    
     <!-- 探索结果弹窗 -->
-    <div v-if="showExploreResult" class="modal" @click="showExploreResult = false">
+    <div v-if="showModals.explore" class="modal" @click="showModals.explore = false">
       <div class="modal-content" @click.stop>
         <h3>{{ exploreResult.title }}</h3>
         <p>{{ exploreResult.description }}</p>
-        <div v-if="exploreResult.items && exploreResult.items.length > 0">
-          <h4>发现物品：</h4>
-          <ul>
-            <li v-for="(item, index) in exploreResult.items" :key="index">{{ item }}</li>
-          </ul>
+        <div v-if="exploreResult.reward">
+          <h4>获得奖励：</h4>
+          <p>{{ exploreResult.reward }}</p>
         </div>
-        <button class="close-btn" @click="showExploreResult = false">关闭</button>
+        <button class="close-btn" @click="showModals.explore = false">关闭</button>
       </div>
     </div>
     
     <!-- 状态查看弹窗 -->
-    <div v-if="showStatus" class="modal" @click="showStatus = false">
+    <div v-if="showModals.status" class="modal" @click="showModals.status = false">
       <div class="modal-content" @click.stop>
         <h3>角色状态</h3>
         <div class="status-detail">
           <p><strong>姓名：</strong>{{ gameState.player.name }}</p>
-          <p><strong>境界：</strong>{{ gameState.player.cultivation }}</p>
+          <p><strong>境界：</strong>{{ gameState.player.realm }}</p>
           <p><strong>等级：</strong>{{ gameState.player.level }}</p>
-          <p><strong>气血：</strong>{{ gameState.player.hp }}/100</p>
-          <p><strong>法力：</strong>{{ gameState.player.mp }}/50</p>
-          <p><strong>当前场景：</strong>{{ getSceneName(gameState.scene) }}</p>
+          <p><strong>修为等级：</strong>{{ gameState.player.cultivationLevel }}</p>
+          <p><strong>生命值：</strong>{{ gameState.player.health }}/{{ gameState.player.maxHealth }}</p>
+          <p><strong>灵力：</strong>{{ gameState.player.spiritualPower }}/{{ gameState.player.maxSpiritualPower }}</p>
+          <p><strong>攻击力：</strong>{{ gameState.player.attack }}</p>
+          <p><strong>防御力：</strong>{{ gameState.player.defense }}</p>
+          <p><strong>经验值：</strong>{{ gameState.player.experience }}</p>
+          <p><strong>当前场景：</strong>{{ currentSceneName }}</p>
         </div>
-        <button class="close-btn" @click="showStatus = false">关闭</button>
+        <button class="close-btn" @click="showModals.status = false">关闭</button>
       </div>
     </div>
     
     <!-- 背包弹窗 -->
-    <div v-if="showInventory" class="modal" @click="showInventory = false">
+    <div v-if="showModals.inventory" class="modal" @click="showModals.inventory = false">
       <div class="modal-content" @click.stop>
         <h3>背包</h3>
-        <div v-if="gameState.player.inventory && gameState.player.inventory.length > 0">
-          <ul>
-            <li v-for="(item, index) in gameState.player.inventory" :key="index">
-              {{ item.name }} x {{ item.count }}
-            </li>
-          </ul>
+        <div v-if="gameState.inventory && gameState.inventory.length > 0" class="inventory-list">
+          <div v-for="item in gameState.inventory" :key="item.id" class="inventory-item">
+            <div class="item-info">
+              <span class="item-name">{{ item.name }}</span>
+              <span class="item-quantity">x {{ item.quantity }}</span>
+            </div>
+            <button class="use-btn" @click="useItem(item.id)">使用</button>
+          </div>
         </div>
         <p v-else>背包是空的</p>
-        <button class="close-btn" @click="showInventory = false">关闭</button>
+        <button class="close-btn" @click="showModals.inventory = false">关闭</button>
+      </div>
+    </div>
+    
+    <!-- 战斗弹窗 -->
+    <div v-if="showModals.combat" class="modal combat-modal">
+      <div class="modal-content combat-content">
+        <h3>战斗中</h3>
+        <div class="combat-status">
+          <div class="combatant">
+            <h4>玩家</h4>
+            <div class="health-bar">
+              <div class="health-fill" :style="{ width: (battleState.playerHealth / 100 * 100) + '%' }"></div>
+            </div>
+            <p>{{ battleState.playerHealth }}/100</p>
+          </div>
+          <div class="combatant">
+            <h4>怪物</h4>
+            <div class="health-bar">
+              <div class="health-fill monster" :style="{ width: (battleState.monsterHealth / 100 * 100) + '%' }"></div>
+            </div>
+            <p>{{ battleState.monsterHealth }}/100</p>
+          </div>
+        </div>
+        <div class="combat-log">
+          <div v-for="(log, index) in battleState.logs" :key="index" class="log-entry">
+            {{ log }}
+          </div>
+        </div>
+        <div class="combat-actions">
+          <button class="combat-btn" @click="executeCombatTurn('attack')">攻击</button>
+          <button class="combat-btn" @click="executeCombatTurn('defend')">防御</button>
+          <button class="combat-btn" @click="executeCombatTurn('skill')">技能</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 寻宝弹窗 -->
+    <div v-if="showModals.treasure" class="modal" @click="showModals.treasure = false">
+      <div class="modal-content" @click.stop>
+        <h3>寻宝结果</h3>
+        <p><strong>地点：</strong>{{ treasureResult.location }}</p>
+        <p><strong>奖励：</strong>{{ treasureResult.reward }}</p>
+        <p><strong>稀有度：</strong>{{ treasureResult.rarity }}</p>
+        <button class="close-btn" @click="showModals.treasure = false">关闭</button>
+      </div>
+    </div>
+    
+    <!-- 剧情进度弹窗 -->
+    <div v-if="showModals.story" class="modal" @click="showModals.story = false">
+      <div class="modal-content" @click.stop>
+        <h3>剧情进度</h3>
+        <div v-if="gameState.storyProgress">
+          <div class="progress-section">
+            <h4>已完成节点</h4>
+            <ul>
+              <li v-for="node in gameState.storyProgress.completedNodes" :key="node">
+                {{ node }}
+              </li>
+            </ul>
+          </div>
+          <div class="progress-section">
+            <h4>已解锁节点</h4>
+            <ul>
+              <li v-for="node in gameState.storyProgress.unlockedNodes" :key="node">
+                {{ node }}
+              </li>
+            </ul>
+          </div>
+          <div class="progress-section">
+            <h4>当前节点</h4>
+            <p>{{ gameState.storyProgress.currentNode }}</p>
+          </div>
+        </div>
+        <p v-else>暂无剧情进度</p>
+        <button class="close-btn" @click="showModals.story = false">关闭</button>
       </div>
     </div>
   </div>
@@ -448,10 +709,10 @@ onMounted(() => {
   height: 100vh;
   position: relative;
   overflow: hidden;
-  font-family: 'SimSun', serif;
+  font-family: 'Microsoft YaHei', 'SimSun', serif;
 }
 
-.scene {
+.scene-background {
   width: 100%;
   height: 70%;
   background-size: cover;
@@ -459,24 +720,124 @@ onMounted(() => {
   position: relative;
 }
 
-.player-status {
+.scene-background.village {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.scene-background.mountain {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.scene-background.cave {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.scene-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.player-status-bar {
   position: absolute;
   top: 20px;
   left: 20px;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.8);
   color: #fff;
-  padding: 15px;
-  border-radius: 8px;
+  padding: 15px 20px;
+  border-radius: 10px;
   font-size: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  max-width: 400px;
 }
 
 .status-item {
-  margin-bottom: 8px;
+  display: flex;
+  gap: 5px;
 }
 
 .label {
   font-weight: bold;
-  margin-right: 10px;
+  color: #4CAF50;
+}
+
+.game-actions {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.action-btn {
+  background: rgba(76, 175, 80, 0.9);
+  color: #fff;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.action-btn:hover:not(:disabled) {
+  background: rgba(69, 160, 69, 1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.action-btn .icon {
+  font-size: 16px;
+}
+
+.scene-switcher {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+}
+
+.scene-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 10px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.scene-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.scene-btn.active {
+  background: rgba(76, 175, 80, 0.9);
+  border-color: #4CAF50;
+}
+
+.scene-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .dialogue-container {
@@ -485,7 +846,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   height: 30%;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.5));
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.7));
   color: #fff;
   padding: 20px;
   display: flex;
@@ -496,11 +857,38 @@ onMounted(() => {
   flex: 1;
   overflow-y: auto;
   margin-bottom: 15px;
+  padding-right: 10px;
+}
+
+.dialogue-history::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dialogue-history::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.dialogue-history::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
 }
 
 .dialogue-message {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   display: flex;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .speaker {
@@ -524,18 +912,26 @@ onMounted(() => {
 }
 
 .option-button {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 10px 15px;
-  border-radius: 5px;
+  padding: 12px 20px;
+  border-radius: 8px;
   cursor: pointer;
   text-align: left;
-  transition: background 0.3s;
+  transition: all 0.3s;
+  font-size: 14px;
 }
 
-.option-button:hover {
-  background: rgba(255, 255, 255, 0.3);
+.option-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateX(5px);
+}
+
+.option-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .free-input {
@@ -545,25 +941,36 @@ onMounted(() => {
 
 .free-input input {
   flex: 1;
-  padding: 10px;
+  padding: 12px 15px;
   border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 5px;
+  border-radius: 8px;
   background: rgba(0, 0, 0, 0.5);
   color: #fff;
+  font-size: 14px;
+}
+
+.free-input input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .send-button {
   background: #4CAF50;
   color: #fff;
   border: none;
-  padding: 0 20px;
-  border-radius: 5px;
+  padding: 0 25px;
+  border-radius: 8px;
   cursor: pointer;
+  font-size: 14px;
   transition: background 0.3s;
 }
 
-.send-button:hover {
+.send-button:hover:not(:disabled) {
   background: #45a049;
+}
+
+.send-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .loading {
@@ -588,61 +995,18 @@ onMounted(() => {
   100% { transform: rotate(360deg); }
 }
 
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-input:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* 游戏操作按钮 */
-.game-actions {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  display: flex;
-  gap: 10px;
-}
-
-.action-btn {
-  background: rgba(76, 175, 80, 0.8);
-  color: #fff;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  transition: background 0.3s, transform 0.2s;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-}
-
-.action-btn:hover {
-  background: rgba(69, 160, 69, 1);
-  transform: translateY(-2px);
-}
-
-.action-btn .icon {
-  font-size: 16px;
-}
-
-/* 弹窗样式 */
 .modal {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  animation: fadeIn 0.3s ease-in;
 }
 
 .modal-content {
@@ -652,6 +1016,8 @@ input:disabled {
   border-radius: 15px;
   max-width: 500px;
   width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -674,28 +1040,58 @@ input:disabled {
   margin-bottom: 15px;
 }
 
-.modal-content ul {
-  list-style: none;
-  padding: 0;
-}
-
-.modal-content li {
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 5px;
-  margin-bottom: 8px;
-}
-
 .status-detail p {
   padding: 8px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.inventory-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.inventory-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.item-info {
+  display: flex;
+  gap: 15px;
+}
+
+.item-name {
+  font-weight: bold;
+}
+
+.item-quantity {
+  color: #ccc;
+}
+
+.use-btn {
+  background: #4CAF50;
+  color: #fff;
+  border: none;
+  padding: 5px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.use-btn:hover {
+  background: #45a049;
 }
 
 .close-btn {
   background: #4CAF50;
   color: #fff;
   border: none;
-  padding: 10px 30px;
+  padding: 12px 30px;
   border-radius: 8px;
   cursor: pointer;
   font-size: 16px;
@@ -706,5 +1102,93 @@ input:disabled {
 
 .close-btn:hover {
   background: #45a049;
+}
+
+.combat-modal {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.combat-content {
+  max-width: 600px;
+}
+
+.combat-status {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 20px;
+}
+
+.combatant {
+  text-align: center;
+}
+
+.health-bar {
+  width: 150px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 10px auto;
+}
+
+.health-fill {
+  height: 100%;
+  background: #4CAF50;
+  transition: width 0.3s;
+}
+
+.health-fill.monster {
+  background: #f44336;
+}
+
+.combat-log {
+  max-height: 150px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.log-entry {
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.combat-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.combat-btn {
+  flex: 1;
+  background: #4CAF50;
+  color: #fff;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s;
+}
+
+.combat-btn:hover {
+  background: #45a049;
+}
+
+.progress-section {
+  margin-bottom: 20px;
+}
+
+.progress-section ul {
+  list-style: none;
+  padding: 0;
+}
+
+.progress-section li {
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  margin-bottom: 5px;
 }
 </style>

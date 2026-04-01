@@ -1,8 +1,10 @@
 package com.npcagent.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
-
-import jakarta.persistence.*;
 
 /**
  * 怪物模型
@@ -14,46 +16,66 @@ import jakarta.persistence.*;
  * - 行为：AI行为模式
  */
 @Data
-@Entity
-@Table(name = "monster")
+@TableName("monster")
 public class Monster {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    @Column(nullable = false)
-    private String name; // 怪物名称
+    @TableField("name")
+    private String name;
 
-    private String type; // 怪物类型：beast, demon, spirit, undead
-    private int level; // 怪物等级
+    @TableField("type")
+    private String type;
 
-    // 属性
-    private int health; // 生命值
-    private int maxHealth; // 最大生命值
-    private int attack; // 攻击力
-    private int defense; // 防御力
-    private int spiritualPower; // 灵力
+    @TableField("level")
+    private int level;
 
-    // 掉落
-    @Column(columnDefinition = "TEXT")
-    private String drops; // 掉落物品JSON
+    @TableField("health")
+    private int health;
 
-    // 行为
-    private String aiBehavior; // AI行为模式
-    private int aggroRange; // 仇恨范围
-    private int patrolRange; // 巡逻范围
+    @TableField("max_health")
+    private int maxHealth;
 
-    // 位置
-    private String currentScene; // 当前所在场景
-    private int positionX; // 场景内X坐标
-    private int positionY; // 场景内Y坐标
+    @TableField("attack")
+    private int attack;
 
-    // 状态
-    private boolean isAlive; // 是否存活
-    private long respawnTime; // 刷新时间
+    @TableField("defense")
+    private int defense;
 
-    // 外观
-    private String appearance; // 外观描述
-    private String icon; // 图标路径
+    @TableField("spiritual_power")
+    private int spiritualPower;
+
+    @TableField("drops")
+    private String drops;
+
+    @TableField("ai_behavior")
+    private String aiBehavior;
+
+    @TableField("aggro_range")
+    private int aggroRange;
+
+    @TableField("patrol_range")
+    private int patrolRange;
+
+    @TableField("current_scene")
+    private String currentScene;
+
+    @TableField("position_x")
+    private int positionX;
+
+    @TableField("position_y")
+    private int positionY;
+
+    @TableField("is_alive")
+    private boolean isAlive;
+
+    @TableField("respawn_time")
+    private long respawnTime;
+
+    @TableField("appearance")
+    private String appearance;
+
+    @TableField("icon")
+    private String icon;
 }

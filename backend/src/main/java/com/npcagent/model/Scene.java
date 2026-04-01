@@ -1,9 +1,10 @@
 package com.npcagent.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
-
-import jakarta.persistence.*;
-import java.util.List;
 
 /**
  * 场景模型
@@ -15,46 +16,51 @@ import java.util.List;
  * - 场景连接：相邻场景
  */
 @Data
-@Entity
-@Table(name = "scene")
+@TableName("scene")
 public class Scene {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    private String sceneCode; // 场景代码（如 village, mountain, cave）
+    @TableField("scene_code")
+    private String sceneCode;
 
-    @Column(nullable = false)
-    private String name; // 场景名称
+    @TableField("name")
+    private String name;
 
-    private String description; // 场景描述
+    @TableField("description")
+    private String description;
 
-    private String type; // 场景类型：village, mountain, forest, cave, city, sect
+    @TableField("type")
+    private String type;
 
-    private int levelRequirement; // 等级要求
-    private int dangerLevel; // 危险度：1-安全，2-普通，3-危险，4-极危险
+    @TableField("level_requirement")
+    private int levelRequirement;
 
-    // 场景内容（使用JSON存储）
-    @Column(columnDefinition = "TEXT")
-    private String npcs; // NPC列表JSON
+    @TableField("danger_level")
+    private int dangerLevel;
 
-    @Column(columnDefinition = "TEXT")
-    private String resourcePoints; // 资源点列表JSON
+    @TableField("npcs")
+    private String npcs;
 
-    @Column(columnDefinition = "TEXT")
-    private String monsters; // 怪物列表JSON
+    @TableField("resource_points")
+    private String resourcePoints;
 
-    @Column(columnDefinition = "TEXT")
-    private String interactiveObjects; // 可交互对象列表JSON
+    @TableField("monsters")
+    private String monsters;
 
-    // 场景连接
-    @Column(columnDefinition = "TEXT")
-    private String adjacentScenes; // 相邻场景JSON
+    @TableField("interactive_objects")
+    private String interactiveObjects;
 
-    // 场景状态
-    private boolean isUnlocked; // 是否解锁
-    private String backgroundMusic; // 背景音乐
-    private String backgroundImage; // 背景图片
+    @TableField("adjacent_scenes")
+    private String adjacentScenes;
+
+    @TableField("is_unlocked")
+    private boolean isUnlocked;
+
+    @TableField("background_music")
+    private String backgroundMusic;
+
+    @TableField("background_image")
+    private String backgroundImage;
 }

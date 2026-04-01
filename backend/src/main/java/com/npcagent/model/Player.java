@@ -1,9 +1,10 @@
 package com.npcagent.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
-
-import jakarta.persistence.*;
-import java.util.List;
 
 /**
  * 玩家模型
@@ -17,52 +18,66 @@ import java.util.List;
  * - 剧情进度：已完成的剧情节点
  */
 @Data
-@Entity
-@Table(name = "player")
+@TableName("player")
 public class Player {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    private String playerId; // 玩家唯一标识
+    @TableField("player_id")
+    private String playerId;
 
-    @Column(nullable = false)
-    private String name; // 玩家名称
+    @TableField("name")
+    private String name;
 
-    private int level; // 等级
+    @TableField("level")
+    private int level;
 
-    // 修仙属性
-    private int cultivationLevel; // 修为等级
-    private String realm; // 境界（炼气、筑基、金丹等）
-    private int spiritualPower; // 灵力
-    private int physicalStrength; // 体魄
-    private int talent; // 悟性
+    @TableField("cultivation_level")
+    private int cultivationLevel;
 
-    // 装备
-    private Long weaponId; // 武器ID
-    private Long armorId; // 防具ID
-    private Long accessoryId; // 饰品ID
+    @TableField("realm")
+    private String realm;
 
-    // 背包（使用JSON存储，或单独创建背包表）
-    @Column(columnDefinition = "TEXT")
-    private String inventory; // 背包物品JSON
+    @TableField("spiritual_power")
+    private int spiritualPower;
 
-    // 技能（使用JSON存储，或单独创建技能表）
-    @Column(columnDefinition = "TEXT")
-    private String skills; // 技能列表JSON
+    @TableField("physical_strength")
+    private int physicalStrength;
 
-    // 剧情进度
-    @Column(columnDefinition = "TEXT")
-    private String completedNodes; // 已完成的剧情节点JSON
+    @TableField("talent")
+    private int talent;
 
-    // 位置信息
-    private String currentScene; // 当前所在场景
-    private int positionX; // 场景内X坐标
-    private int positionY; // 场景内Y坐标
+    @TableField("weapon_id")
+    private Long weaponId;
 
-    // 状态
-    private boolean isOnline; // 是否在线
-    private long lastLoginTime; // 最后登录时间
+    @TableField("armor_id")
+    private Long armorId;
+
+    @TableField("accessory_id")
+    private Long accessoryId;
+
+    @TableField("inventory")
+    private String inventory;
+
+    @TableField("skills")
+    private String skills;
+
+    @TableField("completed_nodes")
+    private String completedNodes;
+
+    @TableField("current_scene")
+    private String currentScene;
+
+    @TableField("position_x")
+    private int positionX;
+
+    @TableField("position_y")
+    private int positionY;
+
+    @TableField("is_online")
+    private boolean isOnline;
+
+    @TableField("last_login_time")
+    private long lastLoginTime;
 }

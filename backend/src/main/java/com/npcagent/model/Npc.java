@@ -1,8 +1,10 @@
 package com.npcagent.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
-
-import jakarta.persistence.*;
 
 /**
  * NPC模型
@@ -14,46 +16,60 @@ import jakarta.persistence.*;
  * - 交互行为：可交互类型、功能
  */
 @Data
-@Entity
-@Table(name = "npc")
+@TableName("npc")
 public class Npc {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    private String npcCode; // NPC代码（如 elder, sectMaster）
+    @TableField("npc_code")
+    private String npcCode;
 
-    @Column(nullable = false)
-    private String name; // NPC名称
+    @TableField("name")
+    private String name;
 
-    private String personality; // 性格特点
-    private String backstory; // 背景故事
-    private String cultivationLevel; // 修为等级
-    private String realm; // 境界
+    @TableField("personality")
+    private String personality;
 
-    // 对话系统
-    @Column(columnDefinition = "TEXT")
-    private String dialogues; // 对话库JSON
+    @TableField("backstory")
+    private String backstory;
 
-    @Column(columnDefinition = "TEXT")
-    private String relatedNodes; // 关联剧情节点JSON
+    @TableField("cultivation_level")
+    private String cultivationLevel;
 
-    // 交互行为
-    private String interactionType; // 交互类型：dialogue, trade, quest, training
-    private String function; // 功能描述
+    @TableField("realm")
+    private String realm;
 
-    // 位置信息
-    private String currentScene; // 当前所在场景
-    private int positionX; // 场景内X坐标
-    private int positionY; // 场景内Y坐标
+    @TableField("dialogues")
+    private String dialogues;
 
-    // 状态
-    private boolean isActive; // 是否激活
-    private String schedule; // 活动时间表
+    @TableField("related_nodes")
+    private String relatedNodes;
 
-    // 外观
-    private String appearance; // 外观描述
-    private String icon; // 图标路径
+    @TableField("interaction_type")
+    private String interactionType;
+
+    @TableField("function")
+    private String function;
+
+    @TableField("current_scene")
+    private String currentScene;
+
+    @TableField("position_x")
+    private int positionX;
+
+    @TableField("position_y")
+    private int positionY;
+
+    @TableField("is_active")
+    private boolean isActive;
+
+    @TableField("schedule")
+    private String schedule;
+
+    @TableField("appearance")
+    private String appearance;
+
+    @TableField("icon")
+    private String icon;
 }

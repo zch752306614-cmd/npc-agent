@@ -1,9 +1,15 @@
 package com.npcagent.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.npcagent.mapper.PlayerMapper;
+import com.npcagent.mapper.StoryNodeMapper;
+import com.npcagent.model.Player;
 import com.npcagent.model.StoryNode;
-import com.npcagent.rag.PlayerState;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +25,12 @@ import java.util.Map;
 @Service
 public class StoryNodeService {
 
+    @Autowired
+    private PlayerMapper playerMapper;
+
+    @Autowired
+    private StoryNodeMapper storyNodeMapper;
+
     /**
      * 获取玩家的剧情进度
      *
@@ -26,9 +38,22 @@ public class StoryNodeService {
      * @return 剧情进度信息
      */
     public Map<String, Object> getStoryProgress(String playerId) {
-        // 从数据库获取玩家剧情进度
-        // 这里使用模拟数据
-        Map<String, Object> result = new java.util.HashMap<>();
+        QueryWrapper<Player> playerQuery = new QueryWrapper<>();
+        playerQuery.eq("player_id", playerId);
+        Player player = playerMapper.selectOne(playerQuery);
+        
+        if (player == null) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("playerId", playerId);
+            result.put("completedNodes", List.of());
+            result.put("unlockedNodes", List.of());
+            result.put("currentNode", "");
+            return result;
+        }
+        
+        String completedNodesJson = player.getCompletedNodes();
+        
+        Map<String, Object> result = new HashMap<>();
         result.put("playerId", playerId);
         result.put("completedNodes", List.of("village_001", "village_002"));
         result.put("unlockedNodes", List.of("village_003", "village_004", "village_005"));
@@ -49,14 +74,26 @@ public class StoryNodeService {
      * @return 解锁结果
      */
     public Map<String, Object> unlockNode(String playerId, String nodeId) {
-        // 检查节点是否存在
-        // 检查前置条件是否满足
-        // 解锁节点
+        QueryWrapper<StoryNode> nodeQuery = new QueryWrapper<>();
+        nodeQuery.eq("node_id", nodeId);
+        StoryNode node = storyNodeMapper.selectOne(nodeQuery);
         
-        Map<String, Object> result = new java.util.HashMap<>();
+        if (node == null) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "剧情节点不存在");
+            return result;
+        }
+        
+        UpdateWrapper<StoryNode> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("node_id", nodeId);
+        updateWrapper.set("is_unlocked", true);
+        storyNodeMapper.update(null, updateWrapper);
+        
+        Map<String, Object> result = new HashMap<>();
         result.put("success", true);
         result.put("nodeId", nodeId);
-        result.put("nodeName", getNodeName(nodeId));
+        result.put("nodeName", node.getName());
         result.put("message", "剧情节点已解锁！");
         
         return result;
@@ -70,17 +107,28 @@ public class StoryNodeService {
      * @return 完成结果
      */
     public Map<String, Object> completeNode(String playerId, String nodeId) {
-        // 检查节点是否已解锁
-        // 完成节点
-        // 解锁后续节点
-        // 发放奖励
+        QueryWrapper<StoryNode> nodeQuery = new QueryWrapper<>();
+        nodeQuery.eq("node_id", nodeId);
+        StoryNode node = storyNodeMapper.selectOne(nodeQuery);
         
-        Map<String, Object> result = new java.util.HashMap<>();
+        if (node == null) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "剧情节点不存在");
+            return result;
+        }
+        
+        UpdateWrapper<StoryNode> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("node_id", nodeId);
+        updateWrapper.set("is_completed", true);
+        storyNodeMapper.update(null, updateWrapper);
+        
+        Map<String, Object> result = new HashMap<>();
         result.put("success", true);
         result.put("nodeId", nodeId);
-        result.put("nodeName", getNodeName(nodeId));
-        result.put("rewards", getNodeRewards(nodeId));
-        result.put("nextNodes", getNextNodes(nodeId));
+        result.put("nodeName", node.getName());
+        result.put("rewards", List.of("获得：修仙经验"));
+        result.put("nextNodes", List.of());
         result.put("message", "剧情节点已完成！");
         
         return result;
@@ -95,92 +143,24 @@ public class StoryNodeService {
      * @return 选择结果
      */
     public Map<String, Object> chooseBranch(String playerId, String nodeId, String branch) {
-        // 检查节点是否支持分支
-        // 处理分支选择
-        // 解锁对应分支的节点
+        QueryWrapper<StoryNode> nodeQuery = new QueryWrapper<>();
+        nodeQuery.eq("node_id", nodeId);
+        StoryNode node = storyNodeMapper.selectOne(nodeQuery);
         
-        Map<String, Object> result = new java.util.HashMap<>();
+        if (node == null) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "剧情节点不存在");
+            return result;
+        }
+        
+        Map<String, Object> result = new HashMap<>();
         result.put("success", true);
         result.put("nodeId", nodeId);
         result.put("branch", branch);
-        result.put("nextNode", getBranchNextNode(nodeId, branch));
+        result.put("nextNode", "");
         result.put("message", "分支选择成功！");
         
         return result;
-    }
-
-    /**
-     * 获取节点名称
-     *
-     * @param nodeId 节点ID
-     * @return 节点名称
-     */
-    private String getNodeName(String nodeId) {
-        Map<String, String> nodeNames = Map.of(
-                "village_001", "老者引导",
-                "village_002", "灵根测试",
-                "village_003", "功法传授",
-                "village_004", "鼓励坚持",
-                "village_005", "选择放弃",
-                "village_006", "前往青云门"
-        );
-        return nodeNames.getOrDefault(nodeId, "未知节点");
-    }
-
-    /**
-     * 获取节点奖励
-     *
-     * @param nodeId 节点ID
-     * @return 奖励列表
-     */
-    private List<String> getNodeRewards(String nodeId) {
-        Map<String, List<String>> nodeRewards = Map.of(
-                "village_001", List.of("获得：修仙入门知识"),
-                "village_002", List.of("获得：灵根测试结果"),
-                "village_003", List.of("获得：基础吐纳诀"),
-                "village_004", List.of("获得：修炼建议"),
-                "village_006", List.of("获得：青云门通行令")
-        );
-        return nodeRewards.getOrDefault(nodeId, List.of());
-    }
-
-    /**
-     * 获取后续节点
-     *
-     * @param nodeId 节点ID
-     * @return 后续节点列表
-     */
-    private List<String> getNextNodes(String nodeId) {
-        Map<String, List<String>> nextNodes = Map.of(
-                "village_001", List.of("village_002"),
-                "village_002", List.of("village_003", "village_004", "village_005"),
-                "village_003", List.of("village_006"),
-                "village_004", List.of("village_006"),
-                "village_006", List.of("mountain_001")
-        );
-        return nextNodes.getOrDefault(nodeId, List.of());
-    }
-
-    /**
-     * 获取分支对应的下一个节点
-     *
-     * @param nodeId 节点ID
-     * @param branch 分支选择
-     * @return 下一个节点ID
-     */
-    private String getBranchNextNode(String nodeId, String branch) {
-        if ("village_002".equals(nodeId)) {
-            switch (branch) {
-                case "天赋路线":
-                    return "village_003";
-                case "努力路线":
-                    return "village_004";
-                case "放弃修仙":
-                    return "village_005";
-                default:
-                    return "village_003";
-            }
-        }
-        return null;
     }
 }

@@ -1,8 +1,10 @@
 package com.npcagent.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
-
-import jakarta.persistence.*;
 
 /**
  * 剧情节点模型
@@ -15,52 +17,57 @@ import jakarta.persistence.*;
  * - 语义匹配：用于AI自由对话触发
  */
 @Data
-@Entity
-@Table(name = "story_node")
+@TableName("story_node")
 public class StoryNode {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    private String nodeId; // 节点代码（如 village_001）
+    @TableField("node_id")
+    private String nodeId;
 
-    private String nodeType; // 节点类型：key, guide, end
-    private String name; // 节点名称
-    private String description; // 节点描述
+    @TableField("node_type")
+    private String nodeType;
 
-    // 触发条件
-    @Column(columnDefinition = "TEXT")
-    private String preconditions; // 前置节点JSON
+    @TableField("name")
+    private String name;
 
-    @Column(columnDefinition = "TEXT")
-    private String triggerKeywords; // 触发关键词JSON
+    @TableField("description")
+    private String description;
 
-    // 剧情内容
-    private String npcReplyTemplate; // NPC回复模板
+    @TableField("preconditions")
+    private String preconditions;
 
-    // 分支选项
-    @Column(columnDefinition = "TEXT")
-    private String nextStoryNodes; // 后续节点JSON
+    @TableField("trigger_keywords")
+    private String triggerKeywords;
 
-    @Column(columnDefinition = "TEXT")
-    private String rewards; // 奖励JSON
+    @TableField("npc_reply_template")
+    private String npcReplyTemplate;
 
-    @Column(columnDefinition = "TEXT")
-    private String failureConsequences; // 失败后果JSON
+    @TableField("next_story_nodes")
+    private String nextStoryNodes;
 
-    // 语义匹配
-    @Column(columnDefinition = "TEXT")
-    private String semanticEmbedding; // 语义嵌入向量JSON
+    @TableField("rewards")
+    private String rewards;
 
-    private double matchThreshold; // 匹配阈值
+    @TableField("failure_consequences")
+    private String failureConsequences;
 
-    // 状态
-    private boolean isUnlocked; // 是否解锁
-    private boolean isCompleted; // 是否完成
+    @TableField("semantic_embedding")
+    private String semanticEmbedding;
 
-    // 关联
-    private String relatedNpc; // 关联NPC
-    private String relatedScene; // 关联场景
+    @TableField("match_threshold")
+    private double matchThreshold;
+
+    @TableField("is_unlocked")
+    private boolean isUnlocked;
+
+    @TableField("is_completed")
+    private boolean isCompleted;
+
+    @TableField("related_npc")
+    private String relatedNpc;
+
+    @TableField("related_scene")
+    private String relatedScene;
 }

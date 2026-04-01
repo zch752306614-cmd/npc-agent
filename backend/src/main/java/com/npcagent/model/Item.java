@@ -1,8 +1,10 @@
 package com.npcagent.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
-
-import jakarta.persistence.*;
 
 /**
  * 道具模型
@@ -14,46 +16,66 @@ import jakarta.persistence.*;
  * - 消耗品：各种功能道具
  */
 @Data
-@Entity
-@Table(name = "item")
+@TableName("item")
 public class Item {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    @Column(nullable = false)
-    private String name; // 道具名称
+    @TableField("name")
+    private String name;
 
-    private String type; // 道具类型：weapon, armor, accessory, pill, material, consumable
+    @TableField("type")
+    private String type;
 
-    private String description; // 道具描述
+    @TableField("description")
+    private String description;
 
-    private int rarity; // 稀有度：1-普通，2-优秀，3-稀有，4-史诗，5-传说
+    @TableField("rarity")
+    private int rarity;
 
-    // 装备属性
-    private int attack; // 攻击力（武器）
-    private int defense; // 防御力（防具）
-    private int spiritualPower; // 灵力加成
-    private int physicalStrength; // 体魄加成
-    private int talent; // 悟性加成
+    @TableField("attack")
+    private int attack;
 
-    // 丹药属性
-    private int cultivationBoost; // 修为提升
-    private int spiritualPowerRecovery; // 灵力恢复
+    @TableField("defense")
+    private int defense;
 
-    // 材料属性
-    private String materialType; // 材料类型
-    private int quality; // 材料品质
+    @TableField("spiritual_power")
+    private int spiritualPower;
 
-    // 消耗品属性
-    private String effect; // 效果描述
-    private int duration; // 持续时间（秒）
+    @TableField("physical_strength")
+    private int physicalStrength;
 
-    private int stackSize; // 堆叠数量
-    private int maxStackSize; // 最大堆叠数量
+    @TableField("talent")
+    private int talent;
 
-    private int value; // 价值（灵石）
+    @TableField("cultivation_boost")
+    private int cultivationBoost;
 
-    private String icon; // 图标路径
+    @TableField("spiritual_power_recovery")
+    private int spiritualPowerRecovery;
+
+    @TableField("material_type")
+    private String materialType;
+
+    @TableField("quality")
+    private int quality;
+
+    @TableField("effect")
+    private String effect;
+
+    @TableField("duration")
+    private int duration;
+
+    @TableField("stack_size")
+    private int stackSize;
+
+    @TableField("max_stack_size")
+    private int maxStackSize;
+
+    @TableField("value")
+    private int value;
+
+    @TableField("icon")
+    private String icon;
 }

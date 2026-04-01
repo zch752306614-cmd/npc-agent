@@ -1,5 +1,6 @@
 package com.npcagent;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -13,7 +14,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * 4. 角色扮演：每个NPC都有独特的性格、说话风格和背景故事
  *
  * 技术栈：
- * - Spring Boot 2.7.x：Web框架
+ * - Spring Boot 3.2.x：Web框架
+ * - MyBatis-Plus：ORM框架
  * - Jackson：JSON数据处理
  * - Lombok：代码简化
  * - Ollama API：AI对话生成（需要本地部署）
@@ -29,6 +31,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * 3. 确保story-data.json文件位于resources目录
  */
 @SpringBootApplication
+@MapperScan("com.npcagent.mapper")
 public class NpcAgentApplication {
 
     /**
