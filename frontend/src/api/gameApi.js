@@ -3,7 +3,7 @@
  * 统一管理所有与后端的API交互
  */
 
-const API_BASE_URL = 'http://localhost:8080/api/game';
+const API_BASE_URL = 'http://localhost:39999/api/game';
 
 /**
  * 对话系统API

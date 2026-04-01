@@ -380,17 +380,19 @@ public class RAGStoryManager {
                 result.setRewards(Collections.singletonList("获得：修仙入门知识"));
                 result.setDialogueType("fixed");
                 result.setStoryAdvance(true);
+                // 不设置nextOptions，让前端切换到自由输入模式
             } else if ("option2".equals(optionId)) {
                 result.setNpcResponse("（指向镇东方向）镇东有一座废弃的聚灵台，虽已荒废，但仍能感应灵根。你若有心，可去一试。记住，修仙之路，九死一生，需有决心。");
                 result.setTriggeredNodeId("village_002");
                 result.setRewards(Collections.singletonList("获得：灵根测试结果"));
                 result.setDialogueType("fixed");
                 result.setStoryAdvance(true);
+                // 不设置nextOptions，让前端切换到自由输入模式
             }
         }
         
-        // 添加后续对话选项
-        result.setNextOptions(getDialogueOptions(npcCode, playerId));
+        // 不再总是添加后续对话选项，让前端能够切换到自由输入模式
+        // result.setNextOptions(getDialogueOptions(npcCode, playerId));
         
         return result;
     }
