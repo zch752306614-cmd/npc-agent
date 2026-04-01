@@ -3,6 +3,7 @@ package com.npcagent.rag;
 import com.npcagent.model.DialogueOption;
 import com.npcagent.model.DialogueResult;
 import com.npcagent.model.SemanticMatchResult;
+import com.npcagent.service.AiService;
 import com.npcagent.service.VectorStorageService;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +21,7 @@ import java.util.*;
  * AI相关说明：
  * - 本系统采用"规则+AI"的混合模式
  * - 关键剧情节点通过规则匹配触发（关键词匹配）
- * - 自由对话通过AI大语言模型生成（Ollama API）
+ * - 自由对话通过AI大语言模型生成（Spring AI）
  * - 角色设定（CharacterSetting）作为Prompt Engineering的一部分传递给AI
  * - 语义匹配通过向量数据库实现，提高自由对话的准确性
  */
@@ -48,6 +49,12 @@ public class RAGStoryManager {
     private final VectorStorageService vectorStorageService;
 
     /**
+     * AI服务
+     * 用于生成自由对话
+     */
+    private final AiService aiService;
+
+    /**
      * 对话历史存储
      * Key: playerId_npcCode
      * Value: 对话历史列表
@@ -58,8 +65,9 @@ public class RAGStoryManager {
      * 构造函数
      * 初始化时加载所有剧情节点和角色设定
      */
-    public RAGStoryManager(VectorStorageService vectorStorageService) {
+    public RAGStoryManager(VectorStorageService vectorStorageService, AiService aiService) {
         this.vectorStorageService = vectorStorageService;
+        this.aiService = aiService;
         this.storyNodes = loadStoryNodes();
         this.characterSettings = loadCharacterSettings();
         this.dialogueHistoryStore = new HashMap<>();
@@ -434,18 +442,34 @@ public class RAGStoryManager {
     public DialogueResult generateGenericResponse(String npcCode, String playerInput, List<DialogueHistory> dialogueHistory) {
         DialogueResult result = new DialogueResult();
         
-        // 根据NPC代码生成通用回复
-        // 这里使用模拟数据
-        if ("elder".equals(npcCode)) {
-            result.setNpcResponse("（微笑着）年轻人，你的话我不太明白。修仙之路，需要一步一个脚印。你可以问我关于修仙的基础问题，或者直接告诉我你想做什么。");
-        } else if ("sectMaster".equals(npcCode)) {
-            result.setNpcResponse("（威严地）有话直说，莫要拐弯抹角。");
+        CharacterSetting characterSetting = characterSettings.get(npcCode);
+        String npcResponse;
+        
+        if (aiService.isAvailable()) {
+            if (characterSetting != null) {
+                npcResponse = aiService.generateResponse(characterSetting, playerInput, dialogueHistory);
+            } else {
+                npcResponse = aiService.generateGenericResponse(npcCode, playerInput, dialogueHistory);
+            }
+        } else {
+            npcResponse = generateFallbackResponse(npcCode, playerInput);
         }
         
+        result.setNpcResponse(npcResponse);
         result.setDialogueType("free");
         result.setStoryAdvance(false);
         
         return result;
+    }
+
+    private String generateFallbackResponse(String npcCode, String playerInput) {
+        if ("elder".equals(npcCode)) {
+            return "（微笑着）年轻人，你的话我不太明白。修仙之路，需要一步一个脚印。你可以问我关于修仙的基础问题，或者直接告诉我你想做什么。";
+        } else if ("sectMaster".equals(npcCode)) {
+            return "（威严地）有话直说，莫要拐弯抹角。";
+        } else {
+            return "（若有所思地看着你）这位道友，你的话让我有些困惑。";
+        }
     }
 
     /**
