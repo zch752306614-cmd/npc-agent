@@ -3,21 +3,21 @@
     "village": {
       "name": "青牛镇",
       "description": "一个宁静的山村，位于青云山脚下，是通往青云门的必经之路",
-      "npcs": ["老者", "村民甲", "药铺老板"]
+      "npcs": ["elder", "villagerA", "pharmacyOwner"]
     },
     "mountain": {
       "name": "青云山",
       "description": "云雾缭绕的修仙圣地，青云门所在地，山巅有千年古刹",
-      "npcs": ["掌门", "师兄", "师姐", "扫地僧"]
+      "npcs": ["sectMaster", "seniorBrother", "seniorSister", "sweeper"]
     },
     "cave": {
       "name": "神秘洞穴",
       "description": "青云山后山的一处隐秘洞穴，据说藏有上古传承",
-      "npcs": ["神秘老人", "守护兽"]
+      "npcs": ["mysteriousElder", "guardianBeast"]
     }
   },
   "npcs": {
-    "老者": {
+    "elder": {
       "name": "老者",
       "personality": "慈祥、见多识广、乐于助人",
       "backstory": "青牛镇的老居民，曾经是青云门的外门弟子，因资质有限未能更进一步",
@@ -69,7 +69,7 @@
         }
       ]
     },
-    "村民甲": {
+    "villagerA": {
       "name": "村民甲",
       "personality": "热情、朴实、好奇",
       "backstory": "青牛镇的普通村民，世代居住于此",
@@ -85,7 +85,7 @@
         }
       ]
     },
-    "药铺老板": {
+    "pharmacyOwner": {
       "name": "药铺老板",
       "personality": "精明、势利、见多识广",
       "backstory": "青牛镇药铺的老板，经常与修仙者打交道",
@@ -101,7 +101,7 @@
         }
       ]
     },
-    "掌门": {
+    "sectMaster": {
       "name": "青云子",
       "personality": "威严、公正、看重资质",
       "backstory": "青云门掌门，金丹期修士，掌管门派已有百年",
@@ -126,7 +126,7 @@
         }
       ]
     },
-    "师兄": {
+    "seniorBrother": {
       "name": "林峰",
       "personality": "开朗、热心、好胜",
       "backstory": "青云门内门弟子，筑基期修士，入门已有十年",
@@ -142,7 +142,7 @@
         }
       ]
     },
-    "师姐": {
+    "seniorSister": {
       "name": "林小婉",
       "personality": "温柔、善良、细心",
       "backstory": "青云门内门弟子，筑基期修士，擅长炼丹",
@@ -158,7 +158,7 @@
         }
       ]
     },
-    "神秘老人": {
+    "mysteriousElder": {
       "name": "神秘老人",
       "personality": "神秘、高深、孤傲",
       "backstory": "隐居在神秘洞穴中的大能，疑似元婴期修士",
