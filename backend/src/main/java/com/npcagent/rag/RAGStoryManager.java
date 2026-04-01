@@ -1,5 +1,9 @@
 package com.npcagent.rag;
 
+import com.npcagent.model.DialogueOption;
+import com.npcagent.model.DialogueResult;
+import com.npcagent.model.SemanticMatchResult;
+import com.npcagent.service.VectorStorageService;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -11,12 +15,14 @@ import java.util.*;
  * 1. 剧情节点管理：维护游戏中的所有剧情节点和触发条件
  * 2. 角色设定管理：管理每个NPC的性格、说话风格等特征
  * 3. 对话处理：根据玩家输入匹配剧情节点或生成自由对话
+ * 4. 语义匹配：使用向量数据库进行语义相似度匹配
  * 
  * AI相关说明：
  * - 本系统采用"规则+AI"的混合模式
  * - 关键剧情节点通过规则匹配触发（关键词匹配）
  * - 自由对话通过AI大语言模型生成（Ollama API）
  * - 角色设定（CharacterSetting）作为Prompt Engineering的一部分传递给AI
+ * - 语义匹配通过向量数据库实现，提高自由对话的准确性
  */
 @Component
 public class RAGStoryManager {
@@ -36,12 +42,27 @@ public class RAGStoryManager {
     private final Map<String, CharacterSetting> characterSettings;
 
     /**
+     * 向量存储服务
+     * 用于语义匹配和相似度计算
+     */
+    private final VectorStorageService vectorStorageService;
+
+    /**
+     * 对话历史存储
+     * Key: playerId_npcCode
+     * Value: 对话历史列表
+     */
+    private final Map<String, List<DialogueHistory>> dialogueHistoryStore;
+
+    /**
      * 构造函数
      * 初始化时加载所有剧情节点和角色设定
      */
-    public RAGStoryManager() {
+    public RAGStoryManager(VectorStorageService vectorStorageService) {
+        this.vectorStorageService = vectorStorageService;
         this.storyNodes = loadStoryNodes();
         this.characterSettings = loadCharacterSettings();
+        this.dialogueHistoryStore = new HashMap<>();
     }
 
     /**
@@ -304,5 +325,148 @@ public class RAGStoryManager {
         if (!playerState.getCompletedNodes().contains(nodeId)) {
             playerState.getCompletedNodes().add(nodeId);
         }
+    }
+
+    /**
+     * 获取NPC的对话选项
+     *
+     * @param npcCode NPC代码
+     * @param playerId 玩家ID
+     * @return 对话选项列表
+     */
+    public List<DialogueOption> getDialogueOptions(String npcCode, String playerId) {
+        List<DialogueOption> options = new ArrayList<>();
+        
+        // 根据NPC代码和玩家状态生成对话选项
+        // 这里使用模拟数据
+        if ("elder".equals(npcCode)) {
+            DialogueOption option1 = new DialogueOption();
+            option1.setOptionId("option1");
+            option1.setText("我想拜师修仙");
+            option1.setType("normal");
+            option1.setNextNodeId("village_001");
+            option1.setAvailable(true);
+            options.add(option1);
+
+            DialogueOption option2 = new DialogueOption();
+            option2.setOptionId("option2");
+            option2.setText("请问灵根测试在哪里？");
+            option2.setType("normal");
+            option2.setNextNodeId("village_002");
+            option2.setAvailable(true);
+            options.add(option2);
+        }
+        
+        return options;
+    }
+
+    /**
+     * 处理固定选项选择
+     *
+     * @param npcCode NPC代码
+     * @param optionId 选项ID
+     * @param playerId 玩家ID
+     * @return 对话结果
+     */
+    public DialogueResult processFixedOption(String npcCode, String optionId, String playerId) {
+        DialogueResult result = new DialogueResult();
+        
+        // 根据选项ID和NPC代码生成对话结果
+        // 这里使用模拟数据
+        if ("elder".equals(npcCode)) {
+            if ("option1".equals(optionId)) {
+                result.setNpcResponse("（慈祥地看着你）年轻人有志向，修仙之路虽艰险，但若心诚，必有所成。老朽当年也是从青云门外门弟子做起，虽资质平平，但也略知一二。");
+                result.setTriggeredNodeId("village_001");
+                result.setRewards(Collections.singletonList("获得：修仙入门知识"));
+                result.setDialogueType("fixed");
+                result.setStoryAdvance(true);
+            } else if ("option2".equals(optionId)) {
+                result.setNpcResponse("（指向镇东方向）镇东有一座废弃的聚灵台，虽已荒废，但仍能感应灵根。你若有心，可去一试。记住，修仙之路，九死一生，需有决心。");
+                result.setTriggeredNodeId("village_002");
+                result.setRewards(Collections.singletonList("获得：灵根测试结果"));
+                result.setDialogueType("fixed");
+                result.setStoryAdvance(true);
+            }
+        }
+        
+        // 添加后续对话选项
+        result.setNextOptions(getDialogueOptions(npcCode, playerId));
+        
+        return result;
+    }
+
+    /**
+     * 处理语义匹配结果
+     *
+     * @param matchResult 语义匹配结果
+     * @param playerId 玩家ID
+     * @param dialogueHistory 对话历史
+     * @return 对话结果
+     */
+    public DialogueResult processSemanticMatch(SemanticMatchResult matchResult, String playerId, List<DialogueHistory> dialogueHistory) {
+        DialogueResult result = new DialogueResult();
+        
+        // 根据匹配的节点ID生成对话结果
+        String nodeId = matchResult.getMatchedNodeId();
+        StoryNode node = storyNodes.get(nodeId);
+        
+        if (node != null) {
+            result.setNpcResponse(node.getNpcReplyTemplate());
+            result.setTriggeredNodeId(nodeId);
+            result.setRewards(node.getRewards());
+            result.setDialogueType("semantic");
+            result.setStoryAdvance(true);
+        }
+        
+        return result;
+    }
+
+    /**
+     * 生成通用回复
+     *
+     * @param npcCode NPC代码
+     * @param playerInput 玩家输入
+     * @param dialogueHistory 对话历史
+     * @return 对话结果
+     */
+    public DialogueResult generateGenericResponse(String npcCode, String playerInput, List<DialogueHistory> dialogueHistory) {
+        DialogueResult result = new DialogueResult();
+        
+        // 根据NPC代码生成通用回复
+        // 这里使用模拟数据
+        if ("elder".equals(npcCode)) {
+            result.setNpcResponse("（微笑着）年轻人，你的话我不太明白。修仙之路，需要一步一个脚印。你可以问我关于修仙的基础问题，或者直接告诉我你想做什么。");
+        } else if ("sectMaster".equals(npcCode)) {
+            result.setNpcResponse("（威严地）有话直说，莫要拐弯抹角。");
+        }
+        
+        result.setDialogueType("free");
+        result.setStoryAdvance(false);
+        
+        return result;
+    }
+
+    /**
+     * 获取对话历史
+     *
+     * @param playerId 玩家ID
+     * @param npcCode NPC代码
+     * @return 对话历史
+     */
+    public List<DialogueHistory> getDialogueHistory(String playerId, String npcCode) {
+        String key = playerId + "_" + npcCode;
+        return dialogueHistoryStore.getOrDefault(key, new ArrayList<>());
+    }
+
+    /**
+     * 保存对话历史
+     *
+     * @param playerId 玩家ID
+     * @param npcCode NPC代码
+     * @param dialogueHistory 对话历史
+     */
+    public void saveDialogueHistory(String playerId, String npcCode, List<DialogueHistory> dialogueHistory) {
+        String key = playerId + "_" + npcCode;
+        dialogueHistoryStore.put(key, dialogueHistory);
     }
 }
