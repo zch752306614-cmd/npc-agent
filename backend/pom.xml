@@ -121,6 +121,13 @@
             <version>0.8.0</version>
         </dependency>
         
+        <!-- Spring AI Ollama -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-ollama</artifactId>
+            <version>0.8.0</version>
+        </dependency>
+        
         <!-- Milvus Vector Database -->
         <dependency>
             <groupId>io.milvus</groupId>
