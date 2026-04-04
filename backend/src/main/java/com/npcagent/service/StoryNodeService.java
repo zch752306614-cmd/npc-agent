@@ -1,166 +1,92 @@
 package com.npcagent.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
-import com.npcagent.mapper.PlayerMapper;
-import com.npcagent.mapper.StoryNodeMapper;
-import com.npcagent.model.Player;
+import com.npcagent.model.DialogueOption;
 import com.npcagent.model.StoryNode;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.npcagent.mapper.StoryNodeMapper;
+import com.npcagent.mapper.DialogueOptionMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 剧情节点服务
  *
- * 实现剧情节点管理和分支系统：
- * 1. 剧情节点解锁和完成
- * 2. 剧情分支选择
- * 3. 剧情进度跟踪
- * 4. 剧情节点查询和管理
+ * 从数据库加载剧情节点和对话选项，替代硬编码实现
+ * 支持动态配置剧情内容，无需修改代码
  */
 @Service
 public class StoryNodeService {
 
-    @Autowired
-    private PlayerMapper playerMapper;
+    private static final Logger logger = LoggerFactory.getLogger(StoryNodeService.class);
 
-    @Autowired
-    private StoryNodeMapper storyNodeMapper;
+    private final StoryNodeMapper storyNodeMapper;
+    private final DialogueOptionMapper dialogueOptionMapper;
 
-    /**
-     * 获取玩家的剧情进度
-     *
-     * @param playerId 玩家ID
-     * @return 剧情进度信息
-     */
-    public Map<String, Object> getStoryProgress(String playerId) {
-        QueryWrapper<Player> playerQuery = new QueryWrapper<>();
-        playerQuery.eq("player_id", playerId);
-        Player player = playerMapper.selectOne(playerQuery);
-        
-        if (player == null) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("playerId", playerId);
-            result.put("completedNodes", List.of());
-            result.put("unlockedNodes", List.of());
-            result.put("currentNode", "");
-            return result;
-        }
-        
-        String completedNodesJson = player.getCompletedNodes();
-        
-        Map<String, Object> result = new HashMap<>();
-        result.put("playerId", playerId);
-        result.put("completedNodes", List.of("village_001", "village_002"));
-        result.put("unlockedNodes", List.of("village_003", "village_004", "village_005"));
-        result.put("currentNode", "village_003");
-        result.put("storyArcs", List.of(
-                Map.of("id", 1, "name", "初入仙途", "progress", 30),
-                Map.of("id", 2, "name", "秘境探险", "progress", 0)
-        ));
-        
-        return result;
+    public StoryNodeService(StoryNodeMapper storyNodeMapper, DialogueOptionMapper dialogueOptionMapper) {
+        this.storyNodeMapper = storyNodeMapper;
+        this.dialogueOptionMapper = dialogueOptionMapper;
     }
 
     /**
-     * 解锁剧情节点
+     * 根据ID获取剧情节点
      *
-     * @param playerId 玩家ID
      * @param nodeId 节点ID
-     * @return 解锁结果
+     * @return 剧情节点
      */
-    public Map<String, Object> unlockNode(String playerId, String nodeId) {
-        QueryWrapper<StoryNode> nodeQuery = new QueryWrapper<>();
-        nodeQuery.eq("node_id", nodeId);
-        StoryNode node = storyNodeMapper.selectOne(nodeQuery);
-        
-        if (node == null) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "剧情节点不存在");
-            return result;
+    public StoryNode getStoryNodeById(String nodeId) {
+        try {
+            return storyNodeMapper.selectById(nodeId);
+        } catch (Exception e) {
+            logger.error("Error getting story node by id: {}", nodeId, e);
+            return null;
         }
-        
-        UpdateWrapper<StoryNode> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("node_id", nodeId);
-        updateWrapper.set("is_unlocked", true);
-        storyNodeMapper.update(null, updateWrapper);
-        
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("nodeId", nodeId);
-        result.put("nodeName", node.getName());
-        result.put("message", "剧情节点已解锁！");
-        
-        return result;
     }
 
     /**
-     * 完成剧情节点
+     * 获取NPC的可用对话选项
      *
+     * @param npcCode NPC代码
      * @param playerId 玩家ID
-     * @param nodeId 节点ID
-     * @return 完成结果
+     * @return 对话选项列表
      */
-    public Map<String, Object> completeNode(String playerId, String nodeId) {
-        QueryWrapper<StoryNode> nodeQuery = new QueryWrapper<>();
-        nodeQuery.eq("node_id", nodeId);
-        StoryNode node = storyNodeMapper.selectOne(nodeQuery);
-        
-        if (node == null) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "剧情节点不存在");
-            return result;
+    public List<DialogueOption> getAvailableDialogueOptions(String npcCode, String playerId) {
+        try {
+            // 查询该NPC的所有可用对话选项
+            return dialogueOptionMapper.selectByNpcCode(npcCode);
+        } catch (Exception e) {
+            logger.error("Error getting dialogue options for NPC: {}", npcCode, e);
+            return List.of();
         }
-        
-        UpdateWrapper<StoryNode> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("node_id", nodeId);
-        updateWrapper.set("is_completed", true);
-        storyNodeMapper.update(null, updateWrapper);
-        
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("nodeId", nodeId);
-        result.put("nodeName", node.getName());
-        result.put("rewards", List.of("获得：修仙经验"));
-        result.put("nextNodes", List.of());
-        result.put("message", "剧情节点已完成！");
-        
-        return result;
     }
 
     /**
-     * 选择剧情分支
+     * 根据ID获取对话选项
      *
-     * @param playerId 玩家ID
-     * @param nodeId 节点ID
-     * @param branch 分支选择
-     * @return 选择结果
+     * @param optionId 选项ID
+     * @return 对话选项
      */
-    public Map<String, Object> chooseBranch(String playerId, String nodeId, String branch) {
-        QueryWrapper<StoryNode> nodeQuery = new QueryWrapper<>();
-        nodeQuery.eq("node_id", nodeId);
-        StoryNode node = storyNodeMapper.selectOne(nodeQuery);
-        
-        if (node == null) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "剧情节点不存在");
-            return result;
+    public DialogueOption getDialogueOptionById(String optionId) {
+        try {
+            return dialogueOptionMapper.selectById(optionId);
+        } catch (Exception e) {
+            logger.error("Error getting dialogue option by id: {}", optionId, e);
+            return null;
         }
-        
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("nodeId", nodeId);
-        result.put("branch", branch);
-        result.put("nextNode", "");
-        result.put("message", "分支选择成功！");
-        
-        return result;
+    }
+
+    /**
+     * 获取所有剧情节点（用于初始化向量库）
+     *
+     * @return 剧情节点列表
+     */
+    public List<StoryNode> getAllStoryNodes() {
+        try {
+            return storyNodeMapper.selectList(null);
+        } catch (Exception e) {
+            logger.error("Error getting all story nodes", e);
+            return List.of();
+        }
     }
 }

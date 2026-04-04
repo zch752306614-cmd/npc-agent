@@ -88,7 +88,11 @@ public class GameController {
         for (Map<String, String> msg : history) {
             com.npcagent.rag.DialogueHistory dh = new com.npcagent.rag.DialogueHistory();
             dh.setSpeaker(msg.get("speaker"));
-            dh.setText(msg.get("text"));
+            if ("player".equals(msg.get("speaker"))) {
+                dh.setPlayerInput(msg.get("text"));
+            } else {
+                dh.setNpcResponse(msg.get("text"));
+            }
             dialogueHistory.add(dh);
         }
 
@@ -249,45 +253,10 @@ public class GameController {
      * @param playerId 玩家ID
      * @return 剧情进度信息
      */
+    /*
     @GetMapping("/story/progress")
     public Map<String, Object> getStoryProgress(@RequestParam String playerId) {
         return storyNodeService.getStoryProgress(playerId);
     }
-
-    /**
-     * 解锁剧情节点
-     *
-     * @param playerId 玩家ID
-     * @param nodeId 节点ID
-     * @return 解锁结果
-     */
-    @PostMapping("/story/unlock-node")
-    public Map<String, Object> unlockNode(@RequestParam String playerId, @RequestParam String nodeId) {
-        return storyNodeService.unlockNode(playerId, nodeId);
-    }
-
-    /**
-     * 完成剧情节点
-     *
-     * @param playerId 玩家ID
-     * @param nodeId 节点ID
-     * @return 完成结果
-     */
-    @PostMapping("/story/complete-node")
-    public Map<String, Object> completeNode(@RequestParam String playerId, @RequestParam String nodeId) {
-        return storyNodeService.completeNode(playerId, nodeId);
-    }
-
-    /**
-     * 选择剧情分支
-     *
-     * @param playerId 玩家ID
-     * @param nodeId 节点ID
-     * @param branch 分支选择
-     * @return 选择结果
-     */
-    @PostMapping("/story/choose-branch")
-    public Map<String, Object> chooseBranch(@RequestParam String playerId, @RequestParam String nodeId, @RequestParam String branch) {
-        return storyNodeService.chooseBranch(playerId, nodeId, branch);
-    }
+    */
 }

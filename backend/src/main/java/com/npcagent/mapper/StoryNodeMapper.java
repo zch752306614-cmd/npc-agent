@@ -2,14 +2,30 @@ package com.npcagent.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.npcagent.model.StoryNode;
-import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
 
 /**
- * 剧情节点数据访问层
+ * 剧情节点Mapper
  *
- * 继承MyBatis-Plus的BaseMapper接口，提供基础的CRUD操作
- * 自定义查询方法可以在此接口中定义
+ * 使用MyBatis-Plus实现数据库操作
  */
-@Mapper
 public interface StoryNodeMapper extends BaseMapper<StoryNode> {
+
+    /**
+     * 根据NPC代码查询剧情节点列表
+     *
+     * @param npcCode NPC代码
+     * @return 剧情节点列表
+     */
+    List<StoryNode> selectByNpcCode(@Param("npcCode") String npcCode);
+
+    /**
+     * 查询初始剧情节点
+     *
+     * @param npcCode NPC代码
+     * @return 初始剧情节点
+     */
+    StoryNode selectInitialNode(@Param("npcCode") String npcCode);
 }

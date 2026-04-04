@@ -148,36 +148,30 @@ public class DialogueManager {
         for (Map<String, String> msg : dialogueHistory) {
             DialogueHistory dh = new DialogueHistory();
             dh.setSpeaker(msg.get("speaker"));
-            dh.setText(msg.get("text"));
+            if ("player".equals(msg.get("speaker"))) {
+                dh.setPlayerInput(msg.get("text"));
+            } else {
+                dh.setNpcResponse(msg.get("text"));
+            }
             history.add(dh);
         }
 
         // 调用RAG管理器处理对话
         // RAG管理器会尝试匹配剧情节点，如果匹配失败则返回自由对话模式
-        RAGResult ragResult = ragManager.processDialogue(npcCode, playerInput, history, playerState);
+        RAGResult ragResult = ragManager.processDialogue(npcCode, playerInput, "default_player"); // 暂时使用默认playerId
 
         // 处理关键剧情回复
         // 如果匹配到剧情节点，更新玩家状态并返回预设回复
         if ("关键剧情".equals(ragResult.getResponseType()) || "引导剧情".equals(ragResult.getResponseType())) {
-            // 更新玩家状态，标记该节点为已完成
-            if (ragResult.getNodeId() != null) {
-                ragManager.updatePlayerState(playerState, ragResult.getNodeId());
-            }
-
             // 构建回复内容
             String response = ragResult.getResponseContent();
-
-            // 如果有奖励，追加到回复中
-            if (ragResult.getRewards() != null && !ragResult.getRewards().isEmpty()) {
-                response += "\n\n【系统提示】" + String.join("、", ragResult.getRewards());
-            }
 
             return response;
         }
 
         // 处理自由对话回复
         // 未匹配到剧情节点，调用AI生成回复
-        return generateFreeResponse(npcCode, playerInput, history, ragResult.getCharacterSetting());
+        return ragResult.getResponseContent();
     }
 
     /**
@@ -266,9 +260,11 @@ public class DialogueManager {
 
         for (DialogueHistory msg : recentHistory) {
             if ("player".equals(msg.getSpeaker())) {
-                prompt.append("年轻人：").append(msg.getText()).append("\n");
+                String text = msg.getPlayerInput() != null ? msg.getPlayerInput() : "";
+                prompt.append("年轻人：").append(text).append("\n");
             } else {
-                prompt.append(npcCode).append("：").append(msg.getText()).append("\n");
+                String text = msg.getNpcResponse() != null ? msg.getNpcResponse() : "";
+                prompt.append(npcCode).append("：").append(text).append("\n");
             }
         }
 

@@ -165,6 +165,51 @@ public class VectorStorageService {
     }
 
     /**
+     * 搜索相似向量 - 返回多个结果
+     *
+     * @param inputText 输入文本
+     * @param topK 返回结果数量
+     * @return 相似结果列表
+     */
+    public List<Map<String, Object>> searchSimilar(String inputText, int topK) {
+        List<Float> inputVector = embeddingService.embed(inputText);
+
+        if (inputVector == null || inputVector.isEmpty()) {
+            logger.warn("Failed to generate embedding for input: {}", inputText);
+            return Collections.emptyList();
+        }
+
+        return searchSimilar(inputVector, topK);
+    }
+
+    /**
+     * 搜索相似向量
+     *
+     * @param inputVector 输入向量
+     * @param topK 返回结果数量
+     * @return 相似结果列表
+     */
+    public List<Map<String, Object>> searchSimilar(List<Float> inputVector, int topK) {
+        if (!milvusService.isConnected()) {
+            logger.warn("Milvus service is not connected, returning empty result");
+            return Collections.emptyList();
+        }
+
+        List<Map<String, Object>> searchResults = milvusService.searchSimilarVectors(inputVector, topK);
+        List<Map<String, Object>> results = new ArrayList<>();
+
+        for (Map<String, Object> searchResult : searchResults) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("nodeId", searchResult.get("nodeId"));
+            result.put("similarity", searchResult.get("score"));
+            result.put("content", searchResult.get("content"));
+            results.add(result);
+        }
+
+        return results;
+    }
+
+    /**
      * 检查服务是否可用
      *
      * @return true if available

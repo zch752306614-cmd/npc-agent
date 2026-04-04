@@ -19,6 +19,16 @@ import java.util.List;
 public interface AiService {
 
     /**
+     * 生成NPC对话回复（RAG专用）
+     *
+     * 接收完整的Prompt并生成回复
+     *
+     * @param prompt 完整的Prompt（包含角色设定、上下文、历史等）
+     * @return NPC回复内容
+     */
+    String generateResponse(String prompt);
+
+    /**
      * 生成NPC对话回复
      *
      * @param characterSetting 角色设定
@@ -26,7 +36,7 @@ public interface AiService {
      * @param dialogueHistory 对话历史
      * @return NPC回复内容
      */
-    String generateResponse(CharacterSetting characterSetting, String playerInput, 
+    String generateResponse(CharacterSetting characterSetting, String playerInput,
                            List<com.npcagent.rag.DialogueHistory> dialogueHistory);
 
     /**

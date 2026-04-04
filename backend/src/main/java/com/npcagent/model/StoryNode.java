@@ -1,73 +1,64 @@
 package com.npcagent.model;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
+
+import java.util.List;
 
 /**
  * 剧情节点模型
  *
- * 定义游戏中的剧情节点：
- * - 基本信息：ID、节点代码、名称
- * - 剧情内容：描述、NPC回复
- * - 触发条件：前置节点、触发关键词
- * - 分支选项：后续节点、奖励
- * - 语义匹配：用于AI自由对话触发
+ * 存储剧情内容、触发条件和对话选项
  */
 @Data
-@TableName("story_node")
 public class StoryNode {
 
-    @TableId(value = "id", type = IdType.AUTO)
-    private Long id;
-
-    @TableField("node_id")
+    /**
+     * 节点ID
+     */
     private String nodeId;
 
-    @TableField("node_type")
-    private String nodeType;
+    /**
+     * 节点标题
+     */
+    private String title;
 
-    @TableField("name")
-    private String name;
-
-    @TableField("description")
+    /**
+     * 节点描述
+     */
     private String description;
 
-    @TableField("preconditions")
-    private String preconditions;
+    /**
+     * 剧情内容
+     */
+    private String content;
 
-    @TableField("trigger_keywords")
-    private String triggerKeywords;
+    /**
+     * 所属NPC代码
+     */
+    private String npcCode;
 
-    @TableField("npc_reply_template")
-    private String npcReplyTemplate;
+    /**
+     * 前置节点ID（可选）
+     */
+    private String prerequisiteNodeId;
 
-    @TableField("next_story_nodes")
-    private String nextStoryNodes;
+    /**
+     * 后续节点ID（可选）
+     */
+    private String nextNodeId;
 
-    @TableField("rewards")
-    private String rewards;
+    /**
+     * 对话选项列表
+     */
+    private List<DialogueOption> dialogueOptions;
 
-    @TableField("failure_consequences")
-    private String failureConsequences;
+    /**
+     * 是否为初始节点
+     */
+    private Boolean isInitial;
 
-    @TableField("semantic_embedding")
-    private String semanticEmbedding;
-
-    @TableField("match_threshold")
-    private double matchThreshold;
-
-    @TableField("is_unlocked")
-    private boolean isUnlocked;
-
-    @TableField("is_completed")
-    private boolean isCompleted;
-
-    @TableField("related_npc")
-    private String relatedNpc;
-
-    @TableField("related_scene")
-    private String relatedScene;
+    /**
+     * 是否启用
+     */
+    private Boolean enabled;
 }

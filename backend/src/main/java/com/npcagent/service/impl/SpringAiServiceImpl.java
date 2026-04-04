@@ -60,9 +60,11 @@ public class SpringAiServiceImpl implements AiService {
 
             for (DialogueHistory history : dialogueHistory) {
                 if ("player".equals(history.getSpeaker())) {
-                    messages.add(new UserMessage(history.getText()));
+                    String text = history.getPlayerInput() != null ? history.getPlayerInput() : "";
+                    messages.add(new UserMessage(text));
                 } else {
-                    messages.add(new org.springframework.ai.chat.messages.AssistantMessage(history.getText()));
+                    String text = history.getNpcResponse() != null ? history.getNpcResponse() : "";
+                    messages.add(new org.springframework.ai.chat.messages.AssistantMessage(text));
                 }
             }
 
@@ -94,9 +96,11 @@ public class SpringAiServiceImpl implements AiService {
 
             for (DialogueHistory history : dialogueHistory) {
                 if ("player".equals(history.getSpeaker())) {
-                    messages.add(new UserMessage(history.getText()));
+                    String text = history.getPlayerInput() != null ? history.getPlayerInput() : "";
+                    messages.add(new UserMessage(text));
                 } else {
-                    messages.add(new org.springframework.ai.chat.messages.AssistantMessage(history.getText()));
+                    String text = history.getNpcResponse() != null ? history.getNpcResponse() : "";
+                    messages.add(new org.springframework.ai.chat.messages.AssistantMessage(text));
                 }
             }
 
@@ -109,6 +113,27 @@ public class SpringAiServiceImpl implements AiService {
             return response;
         } catch (Exception e) {
             logger.error("Failed to generate generic AI response: {}", e.getMessage());
+            return "（若有所思地看着你）这位道友，你的话让我有些困惑。";
+        }
+    }
+
+    @Override
+    public String generateResponse(String prompt) {
+        if (chatClient == null) {
+            return "（若有所思地看着你）这位道友，你的话让我有些困惑。";
+        }
+
+        try {
+            List<Message> messages = new ArrayList<>();
+            messages.add(new UserMessage(prompt));
+
+            Prompt aiPrompt = new Prompt(messages);
+            String response = chatClient.call(aiPrompt).getResult().getOutput().getContent();
+
+            logger.debug("Generated AI response for RAG");
+            return response;
+        } catch (Exception e) {
+            logger.error("Failed to generate AI response for RAG: {}", e.getMessage());
             return "（若有所思地看着你）这位道友，你的话让我有些困惑。";
         }
     }
