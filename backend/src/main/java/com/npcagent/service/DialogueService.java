@@ -12,12 +12,12 @@ import java.util.Map;
  *
  * 实现双模式对话系统：
  * 1. 固定选项模式：提供预设对话选项，玩家选择后推进剧情
- * 2. 自由输入模式：玩家自由输入，通过语义匹配触发剧情
+ * 2. 自由输入模式：玩家自由输入，通过RAG系统生成回复
  *
  * 核心功能：
  * - 获取NPC对话选项
  * - 处理固定选项选择
- * - 处理自由输入语义匹配
+ * - 处理自由输入
  * - 生成NPC回复
  * - 管理对话历史和上下文
  */
@@ -25,11 +25,9 @@ import java.util.Map;
 public class DialogueService {
 
     private final RAGStoryManager ragStoryManager;
-    private final SemanticMatchingService semanticMatchingService;
 
-    public DialogueService(RAGStoryManager ragStoryManager, SemanticMatchingService semanticMatchingService) {
+    public DialogueService(RAGStoryManager ragStoryManager) {
         this.ragStoryManager = ragStoryManager;
-        this.semanticMatchingService = semanticMatchingService;
     }
 
     /**

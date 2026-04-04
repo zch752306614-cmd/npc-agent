@@ -2,7 +2,6 @@ package com.npcagent.controller;
 
 import com.npcagent.model.DialogueOption;
 import com.npcagent.model.DialogueResult;
-import com.npcagent.model.SemanticMatchResult;
 import com.npcagent.service.*;
 import org.springframework.web.bind.annotation.*;
 
