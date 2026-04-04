@@ -84,6 +84,20 @@ public class VectorStorageService {
     }
 
     /**
+     * 存储剧情向量
+     *
+     * @param nodeId 节点ID
+     * @param content 剧情内容
+     * @param title 节点标题
+     * @param npcCode NPC代码
+     */
+    public void storeVector(String nodeId, String content, String title, String npcCode) {
+        // 组合内容，包含标题和NPC信息，以提高向量的语义表达
+        String combinedContent = title + "：" + content + " (NPC: " + npcCode + ")";
+        addVector(nodeId, combinedContent);
+    }
+
+    /**
      * 查找最相似的向量
      *
      * @param inputText 输入文本
