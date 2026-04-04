@@ -122,7 +122,7 @@ const loadDialogueOptions = async () => {
 const selectFixedOption = async (optionId) => {
   try {
     gameState.value.loading = true;
-    
+
     // 添加玩家消息到历史
     const selectedOption = gameState.value.dialogueOptions.find(
       opt => opt.optionId === optionId
@@ -131,28 +131,25 @@ const selectFixedOption = async (optionId) => {
       speaker: 'player',
       text: selectedOption.text
     });
-    
+
     // 调用后端API
     const result = await dialogueApi.handleFixedOption(
       gameState.value.currentNpc.code,
       optionId,
       playerId.value
     );
-    
+
     // 添加NPC回复到历史
     gameState.value.dialogueHistory.push({
       speaker: 'npc',
       text: result.npcResponse
     });
-    
-    // 更新对话选项
+
+    // 更新对话选项（双模式下始终显示选项）
     if (result.nextOptions && result.nextOptions.length > 0) {
       gameState.value.dialogueOptions = result.nextOptions;
-      gameState.value.dialogueType = 'fixed';
-    } else {
-      gameState.value.dialogueType = 'free';
     }
-    
+
     // 显示奖励
     if (result.rewards && result.rewards.length > 0) {
       alert(`获得奖励：\n${result.rewards.join('\n')}`);
@@ -201,11 +198,10 @@ const sendFreeInput = async () => {
     
     // 清空输入
     freeInputText.value = '';
-    
-    // 如果触发了剧情节点，切换回固定选项模式
+
+    // 如果触发了剧情节点，更新对话选项
     if (result.storyAdvance && result.nextOptions) {
       gameState.value.dialogueOptions = result.nextOptions;
-      gameState.value.dialogueType = 'fixed';
     }
   } catch (error) {
     console.error('发送自由输入失败:', error);
@@ -238,7 +234,6 @@ const changeScene = async (sceneCode) => {
       
       // 重置对话
       gameState.value.dialogueHistory = [];
-      gameState.value.dialogueType = 'fixed';
       await loadDialogueOptions();
       
       alert(`已切换到：${result.sceneName}`);
@@ -543,35 +538,49 @@ onMounted(() => {
         </div>
       </div>
       
-      <!-- 固定选项 -->
-      <div v-if="gameState.dialogueType === 'fixed'" class="dialogue-options">
-        <button
-          v-for="option in gameState.dialogueOptions"
-          :key="option.optionId"
-          class="option-button"
-          @click="selectFixedOption(option.optionId)"
-          :disabled="gameState.loading || !option.available"
-        >
-          {{ option.text }}
-        </button>
-      </div>
-      
-      <!-- 自由输入 -->
-      <div v-else class="free-input">
-        <input
-          type="text"
-          v-model="freeInputText"
-          placeholder="输入你想说的话..."
-          @keyup.enter="sendFreeInput"
-          :disabled="gameState.loading"
-        />
-        <button
-          class="send-button"
-          @click="sendFreeInput"
-          :disabled="gameState.loading || !freeInputText.trim()"
-        >
-          {{ gameState.loading ? '发送中...' : '发送' }}
-        </button>
+      <!-- 双模式对话区域：固定选项 + 自由输入 -->
+      <div class="dialogue-input-area">
+        <!-- 固定选项区域 -->
+        <div class="dialogue-options-section">
+          <h4 class="section-title">预设选项</h4>
+          <div class="dialogue-options">
+            <button
+              v-for="option in gameState.dialogueOptions"
+              :key="option.optionId"
+              class="option-button"
+              @click="selectFixedOption(option.optionId)"
+              :disabled="gameState.loading || !option.available"
+            >
+              {{ option.text }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 分隔线 -->
+        <div class="divider">
+          <span class="divider-text">或</span>
+        </div>
+
+        <!-- 自由输入区域 -->
+        <div class="free-input-section">
+          <h4 class="section-title">自由输入</h4>
+          <div class="free-input">
+            <input
+              type="text"
+              v-model="freeInputText"
+              placeholder="输入你想说的话..."
+              @keyup.enter="sendFreeInput"
+              :disabled="gameState.loading"
+            />
+            <button
+              class="send-button"
+              @click="sendFreeInput"
+              :disabled="gameState.loading || !freeInputText.trim()"
+            >
+              {{ gameState.loading ? '发送中...' : '发送' }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
     
@@ -905,17 +914,64 @@ onMounted(() => {
   color: #2196F3;
 }
 
-.dialogue-options {
+/* 双模式对话区域样式 */
+.dialogue-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dialogue-options-section,
+.free-input-section {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
+.section-title {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: normal;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 5px 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.divider-text {
+  padding: 0 15px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+.dialogue-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .option-button {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(76, 175, 80, 0.2);
   color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 12px 20px;
+  border: 1px solid rgba(76, 175, 80, 0.4);
+  padding: 10px 15px;
   border-radius: 8px;
   cursor: pointer;
   text-align: left;
@@ -924,8 +980,8 @@ onMounted(() => {
 }
 
 .option-button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(76, 175, 80, 0.35);
+  border-color: rgba(76, 175, 80, 0.6);
   transform: translateX(5px);
 }
 

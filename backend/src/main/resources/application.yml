@@ -1,15 +1,9 @@
 server:
-  port: 39999
+  port: 59999
 
 spring:
   application:
     name: npc-agent
-  
-  ai:
-    ollama:
-      base-url: http://localhost:11434
-      model: qwen3.5
-      temperature: 0.7
   
   datasource:
     url: jdbc:mysql://localhost:3306/npc_agent?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
@@ -53,6 +47,15 @@ milvus:
   database: npcagent
   collection-name: npc_agent_vectors
   embedding-dimension: 768
+
+# Ollama Configuration
+ollama:
+  base-url: http://localhost:11434
+  chat:
+    model: qwen3.5
+    temperature: 0.7
+  embedding:
+    model: bge-m3
 
 logging:
   level:

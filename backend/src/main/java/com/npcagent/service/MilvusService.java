@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Milvus向量数据库服务
@@ -39,6 +40,7 @@ import java.util.Map;
  * - 使用Milvus Java SDK v1 API进行向量操作
  * - 支持自动创建集合和索引
  * - 提供向量CRUD操作
+ * - 支持连接失败时的降级处理
  */
 @Service
 public class MilvusService {
@@ -47,6 +49,7 @@ public class MilvusService {
 
     private final MilvusConfig milvusConfig;
     private MilvusClient milvusClient;
+    private boolean connected = false;
 
     private static final String FIELD_ID = "id";
     private static final String FIELD_VECTOR = "vector";
@@ -62,9 +65,11 @@ public class MilvusService {
         try {
             connect();
             createCollectionIfNotExists();
+            connected = true;
             logger.info("Milvus service initialized successfully");
         } catch (Exception e) {
             logger.error("Failed to initialize Milvus service: {}", e.getMessage());
+            connected = false;
         }
     }
 
@@ -85,6 +90,7 @@ public class MilvusService {
                 .withHost(milvusConfig.getHost())
                 .withPort(milvusConfig.getPort())
                 .withDatabaseName(milvusConfig.getDatabase())
+                .withConnectTimeout(5000, TimeUnit.MILLISECONDS)
                 .build();
 
         milvusClient = new MilvusServiceClient(connectParam);
@@ -167,6 +173,11 @@ public class MilvusService {
     }
 
     public void insertVector(String nodeId, String content, List<Float> vector) {
+        if (!connected) {
+            logger.warn("Milvus service is not connected, cannot insert vector");
+            return;
+        }
+
         try {
             List<InsertParam.Field> fields = new ArrayList<>();
             fields.add(new InsertParam.Field(FIELD_NODE_ID, Collections.singletonList(nodeId)));
@@ -190,6 +201,11 @@ public class MilvusService {
     }
 
     public List<Map<String, Object>> searchSimilarVectors(List<Float> queryVector, int topK) {
+        if (!connected) {
+            logger.warn("Milvus service is not connected, returning empty result");
+            return Collections.emptyList();
+        }
+
         try {
             List<List<Float>> vectors = new ArrayList<>();
             vectors.add(queryVector);
@@ -231,6 +247,11 @@ public class MilvusService {
     }
 
     public void dropCollection() {
+        if (!connected) {
+            logger.warn("Milvus service is not connected, cannot drop collection");
+            return;
+        }
+
         try {
             DropCollectionParam dropCollectionParam = DropCollectionParam.newBuilder()
                     .withCollectionName(milvusConfig.getCollectionName())
@@ -248,6 +269,6 @@ public class MilvusService {
     }
 
     public boolean isConnected() {
-        return milvusClient != null;
+        return connected;
     }
 }
