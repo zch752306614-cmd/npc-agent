@@ -24,7 +24,7 @@ import java.util.Map;
  * 实现说明：
  * - 调用Ollama的API进行文本嵌入
  * - 使用bge-m3模型生成768维向量
- * - 支持错误处理和fallback机制
+ * - 支持错误处理，失败时返回空向量并由上层降级
  */
 @Service
 public class EmbeddingService {
@@ -62,7 +62,8 @@ public class EmbeddingService {
 
             HttpEntity<Map<String, String>> request = new HttpEntity<>(requestBody, headers);
 
-            Map<String, Object> response = restTemplate.postForObject(url, request, Map.class);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> response = (Map<String, Object>) restTemplate.postForObject(url, request, Map.class);
 
             if (response != null && response.containsKey("embedding")) {
                 @SuppressWarnings("unchecked")
@@ -71,11 +72,11 @@ public class EmbeddingService {
                 return convertToFloatList(embedding);
             } else {
                 logger.error("Failed to get embedding from Ollama: {}", response);
-                return generateRandomEmbedding();
+                return List.of();
             }
         } catch (Exception e) {
             logger.error("Error generating embedding: {}", e.getMessage());
-            return generateRandomEmbedding();
+            return List.of();
         }
     }
 
@@ -116,13 +117,4 @@ public class EmbeddingService {
                 .toList();
     }
 
-    /**
-     * 生成随机向量（fallback机制）
-     */
-    private List<Float> generateRandomEmbedding() {
-        java.util.Random random = new java.util.Random();
-        return random.doubles(768)
-                .mapToObj(d -> (float) d)
-                .toList();
-    }
 }

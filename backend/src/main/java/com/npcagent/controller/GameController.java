@@ -99,7 +99,6 @@ public class GameController {
         try {
             String npcCode = (String) data.get("npcCode");
             String playerInput = (String) data.get("input");
-            List<Map<String, String>> history = (List<Map<String, String>>) data.get("history");
             String playerId = (String) data.get("playerId");
 
             if (npcCode == null || playerInput == null || playerId == null) {
@@ -108,14 +107,20 @@ public class GameController {
 
             // 转换对话历史格式
             List<com.npcagent.rag.DialogueHistory> dialogueHistory = new java.util.ArrayList<>();
-            if (history != null) {
-                for (Map<String, String> msg : history) {
+            Object historyObj = data.get("history");
+            if (historyObj instanceof List<?> historyList) {
+                for (Object item : historyList) {
+                    if (!(item instanceof Map<?, ?> rawMsg)) {
+                        continue;
+                    }
                     com.npcagent.rag.DialogueHistory dh = new com.npcagent.rag.DialogueHistory();
-                    dh.setSpeaker(msg.get("speaker"));
-                    if ("player".equals(msg.get("speaker"))) {
-                        dh.setPlayerInput(msg.get("text"));
+                    String speaker = rawMsg.get("speaker") instanceof String s ? s : null;
+                    String text = rawMsg.get("text") instanceof String t ? t : null;
+                    dh.setSpeaker(speaker);
+                    if ("player".equals(speaker)) {
+                        dh.setPlayerInput(text);
                     } else {
-                        dh.setNpcResponse(msg.get("text"));
+                        dh.setNpcResponse(text);
                     }
                     dialogueHistory.add(dh);
                 }
@@ -345,7 +350,6 @@ public class GameController {
      * @param playerId 玩家ID
      * @return 统一返回结果，包含剧情进度信息
      */
-    /*
     @GetMapping("/story/progress")
     public Result<Map<String, Object>> getStoryProgress(@RequestParam String playerId) {
         try {
@@ -355,5 +359,4 @@ public class GameController {
             return Result.error("获取剧情进度失败: " + e.getMessage());
         }
     }
-    */
 }

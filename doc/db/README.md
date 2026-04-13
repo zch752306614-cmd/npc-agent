@@ -6,7 +6,8 @@
 doc/db/
 ├── V1__init.sql                          # 初始化脚本
 ├── V2__add_skills_and_combat.sql         # 增量更新V2
-└── V3__add_quests_and_achievements.sql   # 增量更新V3
+├── V3__add_quests_and_achievements.sql   # 增量更新V3
+└── V4__unify_schema_for_backend.sql      # 统一schema（兼容当前后端代码）
 ```
 
 ## 数据库信息
@@ -34,6 +35,11 @@ doc/db/
    - 为玩家表添加成就点数字段
    - 插入初始任务和成就数据
 
+4. **V4__unify_schema_for_backend.sql** - 增量更新V4
+   - 补齐 `npc_character`、`dialogue_option`、`player_state` 表
+   - 对齐 `story_node` 结构（content/next/prerequisite/is_initial/enabled）
+   - 为 `player_inventory` 增加玩家-物品唯一约束
+
 ## 执行方式
 
 ### 方式一：命令行执行
@@ -52,13 +58,14 @@ USE npc_agent;
 source V1__init.sql;
 source V2__add_skills_and_combat.sql;
 source V3__add_quests_and_achievements.sql;
+source V4__unify_schema_for_backend.sql;
 ```
 
 ### 方式二：使用数据库管理工具
 
 1. 使用 Navicat、MySQL Workbench 等工具连接到数据库
 2. 创建数据库 `npc_agent`
-3. 按顺序执行SQL脚本
+3. 按顺序执行SQL脚本（V1 -> V2 -> V3 -> V4）
 
 ## 数据表说明
 
@@ -92,12 +99,21 @@ source V3__add_quests_and_achievements.sql;
 | achievement | 成就表 |
 | player_achievement | 玩家成就进度表 |
 
+### 兼容表（V4）
+
+| 表名 | 说明 |
+|------|------|
+| npc_character | NPC角色兼容表（供当前后端查询） |
+| dialogue_option | 对话选项兼容表（供双模式对话） |
+| player_state | 玩家状态兼容表 |
+
 ## 注意事项
 
 1. 执行脚本前请确保MySQL服务正在运行
 2. 脚本使用 `IF NOT EXISTS`，可以重复执行
 3. 增量更新脚本会修改表结构，请谨慎执行
 4. 建议在执行前备份数据库
+5. 统一schema后，建议优先使用 `doc/db` 下版本脚本，不再单独执行 `backend/src/main/resources/sql/init_database.sql`
 
 ## Redis 信息
 

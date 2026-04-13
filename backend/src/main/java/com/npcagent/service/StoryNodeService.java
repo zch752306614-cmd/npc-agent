@@ -8,7 +8,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 剧情节点服务
@@ -88,5 +90,29 @@ public class StoryNodeService {
             logger.error("Error getting all story nodes", e);
             return List.of();
         }
+    }
+
+    /**
+     * 获取玩家剧情进度（最小可用实现）
+     *
+     * 当前版本未接入玩家剧情进度表的完整读写链路，
+     * 先基于剧情节点顺序返回可展示的进度结构，避免前后端接口断裂。
+     *
+     * @param playerId 玩家ID
+     * @return 剧情进度信息
+     */
+    public Map<String, Object> getStoryProgress(String playerId) {
+        List<StoryNode> nodes = getAllStoryNodes();
+        List<String> orderedNodeIds = nodes.stream()
+                .map(StoryNode::getNodeId)
+                .toList();
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("playerId", playerId);
+        result.put("currentNode", orderedNodeIds.isEmpty() ? "暂无剧情节点" : orderedNodeIds.get(0));
+        result.put("completedNodes", List.of());
+        result.put("unlockedNodes", orderedNodeIds);
+        result.put("totalNodes", orderedNodeIds.size());
+        return result;
     }
 }

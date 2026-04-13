@@ -18,6 +18,11 @@ import java.util.Random;
 public class TreasureHuntService {
 
     private final Random random = new Random();
+    private final InventoryService inventoryService;
+
+    public TreasureHuntService(InventoryService inventoryService) {
+        this.inventoryService = inventoryService;
+    }
 
     /**
      * 开始寻宝
@@ -42,7 +47,12 @@ public class TreasureHuntService {
         result.put("reward", reward);
         result.put("rarity", getRarityLevel(reward));
         result.put("message", "你发现了一个宝藏！");
-        
+
+        RewardParsed rewardParsed = parseReward(reward);
+        Map<String, Object> grantResult = inventoryService.addItemByName(playerId, rewardParsed.itemName(), rewardParsed.quantity());
+        result.put("rewardGranted", Boolean.TRUE.equals(grantResult.get("success")));
+        result.put("grantDetail", grantResult);
+
         return result;
     }
 
@@ -111,4 +121,22 @@ public class TreasureHuntService {
             return "普通级";
         }
     }
+
+    private RewardParsed parseReward(String rewardText) {
+        // 统一解析 "获得：xxx xN"
+        String normalized = rewardText.replace("获得：", "").trim();
+        String[] parts = normalized.split(" x");
+        String itemName = parts.length > 0 ? parts[0].trim() : normalized;
+        int quantity = 1;
+        if (parts.length > 1) {
+            try {
+                quantity = Integer.parseInt(parts[1].trim());
+            } catch (NumberFormatException ignored) {
+                quantity = 1;
+            }
+        }
+        return new RewardParsed(itemName, quantity);
+    }
+
+    private record RewardParsed(String itemName, int quantity) {}
 }

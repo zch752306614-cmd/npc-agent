@@ -1,3 +1,6 @@
+-- 注意：该脚本已废弃，仅保留历史兼容。
+-- 请优先使用 doc/db 下的版本脚本（V1 -> V2 -> V3 -> V4）。
+
 -- 创建数据库
 CREATE DATABASE IF NOT EXISTS npc_agent;
 

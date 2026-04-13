@@ -291,10 +291,10 @@ const getEventTitle = (eventType) => {
 };
 
 // 开始战斗
-const startCombat = async (monsterName) => {
+const startCombat = async (monsterId) => {
   try {
     gameState.value.loading = true;
-    const result = await combatApi.startCombat(playerId.value, monsterName);
+    const result = await combatApi.startCombat(playerId.value, monsterId);
     
     if (result.success) {
       battleState.value = {

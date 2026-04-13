@@ -1,5 +1,5 @@
 // 游戏API调用
-const API_BASE_URL = 'http://localhost:59999/api/game';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:59999/api/game';
 
 // 统一的请求方法
 async function request(endpoint, options = {}) {

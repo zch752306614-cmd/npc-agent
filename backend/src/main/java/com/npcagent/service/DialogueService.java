@@ -1,11 +1,13 @@
 package com.npcagent.service;
 
 import com.npcagent.model.*;
+import com.npcagent.mapper.DialogueHistoryMapper;
 import com.npcagent.rag.*;
 import org.springframework.stereotype.Service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import java.util.List;
-import java.util.Map;
+import java.util.ArrayList;
 
 /**
  * 对话服务
@@ -25,9 +27,11 @@ import java.util.Map;
 public class DialogueService {
 
     private final RAGStoryManager ragStoryManager;
+    private final DialogueHistoryMapper dialogueHistoryMapper;
 
-    public DialogueService(RAGStoryManager ragStoryManager) {
+    public DialogueService(RAGStoryManager ragStoryManager, DialogueHistoryMapper dialogueHistoryMapper) {
         this.ragStoryManager = ragStoryManager;
+        this.dialogueHistoryMapper = dialogueHistoryMapper;
     }
 
     /**
@@ -52,10 +56,10 @@ public class DialogueService {
      * @return 对话结果
      */
     public DialogueResult handleFixedOption(String npcCode, String optionId, String playerId) {
-        // 处理固定选项选择
-        // 推进剧情节点
-        // 生成NPC回复
-        return ragStoryManager.processFixedOption(npcCode, optionId, playerId);
+        DialogueResult result = ragStoryManager.processFixedOption(npcCode, optionId, playerId);
+        // 固定选项文本由RAG侧处理，这里记录NPC回复，保持接口可追溯
+        saveDialogueEntry(playerId, npcCode, "npc", result.getNpcResponse());
+        return result;
     }
 
     /**
@@ -77,7 +81,10 @@ public class DialogueService {
         result.setTriggeredNodeId(ragResult.getTriggeredNodeId());
         result.setDialogueType(ragResult.getResponseType());
         result.setStoryAdvance(ragResult.isStoryAdvance());
-        
+
+        saveDialogueEntry(playerId, npcCode, "player", playerInput);
+        saveDialogueEntry(playerId, npcCode, "npc", result.getNpcResponse());
+
         return result;
     }
 
@@ -89,8 +96,23 @@ public class DialogueService {
      * @return 对话历史
      */
     public List<DialogueHistory> getDialogueHistory(String playerId, String npcCode) {
-        // 暂时返回空列表，实际应该从数据库获取
-        return List.of();
+        QueryWrapper<DialogueHistoryEntity> query = new QueryWrapper<>();
+        query.eq("player_id", playerId)
+                .eq("npc_code", npcCode)
+                .orderByAsc("id");
+        List<DialogueHistoryEntity> rows = dialogueHistoryMapper.selectList(query);
+        List<DialogueHistory> result = new ArrayList<>();
+        for (DialogueHistoryEntity row : rows) {
+            DialogueHistory item = new DialogueHistory();
+            item.setSpeaker(row.getSpeaker());
+            if ("player".equals(row.getSpeaker())) {
+                item.setPlayerInput(row.getText());
+            } else {
+                item.setNpcResponse(row.getText());
+            }
+            result.add(item);
+        }
+        return result;
     }
 
     /**
@@ -101,6 +123,24 @@ public class DialogueService {
      * @param dialogueHistory 对话历史
      */
     public void saveDialogueHistory(String playerId, String npcCode, List<DialogueHistory> dialogueHistory) {
-        // 暂时空实现，实际应该保存到数据库
+        for (DialogueHistory history : dialogueHistory) {
+            if ("player".equals(history.getSpeaker()) && history.getPlayerInput() != null) {
+                saveDialogueEntry(playerId, npcCode, "player", history.getPlayerInput());
+            } else if ("npc".equals(history.getSpeaker()) && history.getNpcResponse() != null) {
+                saveDialogueEntry(playerId, npcCode, "npc", history.getNpcResponse());
+            }
+        }
+    }
+
+    private void saveDialogueEntry(String playerId, String npcCode, String speaker, String text) {
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        DialogueHistoryEntity entity = new DialogueHistoryEntity();
+        entity.setPlayerId(playerId);
+        entity.setNpcCode(npcCode);
+        entity.setSpeaker(speaker);
+        entity.setText(text);
+        dialogueHistoryMapper.insert(entity);
     }
 }
