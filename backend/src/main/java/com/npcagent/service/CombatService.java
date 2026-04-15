@@ -39,11 +39,11 @@ public class CombatService {
 
     private final Map<String, BattleState> activeBattles = new ConcurrentHashMap<>();
     private final PlayerMapper playerMapper;
-    private final InventoryService inventoryService;
+    private final CombatRewardService combatRewardService;
 
-    public CombatService(PlayerMapper playerMapper, InventoryService inventoryService) {
+    public CombatService(PlayerMapper playerMapper, CombatRewardService combatRewardService) {
         this.playerMapper = playerMapper;
-        this.inventoryService = inventoryService;
+        this.combatRewardService = combatRewardService;
     }
 
     /**
@@ -144,9 +144,7 @@ public class CombatService {
 
         if ("player".equals(finalWinner)) {
             int exp = WIN_EXP_REWARD;
-            grantExperience(state.playerId(), exp);
-            inventoryService.addItemByName(state.playerId(), "灵草", 2);
-            inventoryService.addItemByName(state.playerId(), "灵石", 10);
+            combatRewardService.grantWinRewards(state.playerId(), exp);
 
             result.setExperience(exp);
             result.setRewards(List.of("获得：灵草 x2", "获得：灵石 x10", "获得：经验值 +50"));
@@ -162,24 +160,6 @@ public class CombatService {
         QueryWrapper<Player> query = new QueryWrapper<>();
         query.eq("player_id", playerId);
         return playerMapper.selectOne(query);
-    }
-
-    private void grantExperience(String playerId, int exp) {
-        try {
-            Player player = findPlayer(playerId);
-            if (player == null) {
-                return;
-            }
-            // 受限于当前 Player 实体字段，先采用轻量成长：小幅提升境界等级与灵力
-            if (exp >= 50) {
-                player.setLevel(Math.max(1, player.getLevel()) + 1);
-                player.setCultivationLevel(Math.max(0, player.getCultivationLevel()) + 1);
-                player.setSpiritualPower(Math.max(0, player.getSpiritualPower()) + 5);
-            }
-            playerMapper.updateById(player);
-        } catch (Exception ex) {
-            logger.warn("Grant experience failed, playerId={}, exp={}", playerId, exp, ex);
-        }
     }
 
     private int safe(int value, int fallback) {

@@ -8,8 +8,11 @@ import com.npcagent.dto.FreeDialogueRequest;
 import com.npcagent.vo.CombatEndResponse;
 import com.npcagent.vo.CombatStartResponse;
 import com.npcagent.vo.CombatTurnResponse;
+import com.npcagent.vo.ChangeSceneResponse;
+import com.npcagent.vo.ExploreSceneResponse;
 import com.npcagent.vo.InventoryItemResponse;
 import com.npcagent.vo.InventoryOperationResponse;
+import com.npcagent.vo.TreasureHuntResponse;
 import com.npcagent.model.DialogueOption;
 import com.npcagent.model.DialogueResult;
 import com.npcagent.service.*;
@@ -99,7 +102,7 @@ public class GameController {
     }
 
     @PostMapping("/exploration/change-scene")
-    public Result<Map<String, Object>> changeScene(
+    public Result<ChangeSceneResponse> changeScene(
             @RequestParam String playerId,
             @RequestParam String sceneCode
     ) {
@@ -109,7 +112,7 @@ public class GameController {
     }
 
     @PostMapping("/exploration/explore")
-    public Result<Map<String, Object>> exploreScene(@RequestBody ExploreSceneRequest request) {
+    public Result<ExploreSceneResponse> exploreScene(@RequestBody ExploreSceneRequest request) {
         validateExploreRequest(request);
         return Result.success(explorationService.exploreScene(
                 request.getPlayerId(),
@@ -146,7 +149,7 @@ public class GameController {
     }
 
     @PostMapping("/treasure-hunt/start")
-    public Result<Map<String, Object>> startTreasureHunt(
+    public Result<TreasureHuntResponse> startTreasureHunt(
             @RequestParam String playerId,
             @RequestParam String location
     ) {

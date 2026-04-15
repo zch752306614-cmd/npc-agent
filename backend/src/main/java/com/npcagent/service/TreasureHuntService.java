@@ -1,13 +1,12 @@
 package com.npcagent.service;
 
 import com.npcagent.vo.InventoryOperationResponse;
+import com.npcagent.vo.TreasureHuntResponse;
 import com.npcagent.common.exception.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
 
 /**
@@ -43,24 +42,24 @@ public class TreasureHuntService {
      * @param location 寻宝地点
      * @return 寻宝结果
      */
-    public Map<String, Object> startTreasureHunt(String playerId, String location) {
+    public TreasureHuntResponse startTreasureHunt(String playerId, String location) {
         validateRequest(playerId, location);
         logger.info("Start treasure hunt, playerId={}, location={}", playerId, location);
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("location", location);
-        result.put("treasureFound", true);
+        TreasureHuntResponse result = new TreasureHuntResponse();
+        result.setSuccess(true);
+        result.setLocation(location);
+        result.setTreasureFound(true);
 
         String reward = generateRandomReward();
-        result.put("reward", reward);
-        result.put("rarity", getRarityLevel(reward));
-        result.put("message", "你发现了一个宝藏！");
+        result.setReward(reward);
+        result.setRarity(getRarityLevel(reward));
+        result.setMessage("你发现了一个宝藏！");
 
         RewardParsed rewardParsed = parseReward(reward);
         InventoryOperationResponse grantResult = inventoryService.addItemByName(playerId, rewardParsed.itemName(), rewardParsed.quantity());
-        result.put("rewardGranted", grantResult.isSuccess());
-        result.put("grantDetail", grantResult);
+        result.setRewardGranted(grantResult.isSuccess());
+        result.setGrantDetail(grantResult);
 
         return result;
     }

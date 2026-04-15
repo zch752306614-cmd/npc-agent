@@ -1,6 +1,10 @@
 package com.npcagent.service;
 
 import com.npcagent.common.exception.BusinessException;
+import com.npcagent.vo.ChangeSceneResponse;
+import com.npcagent.vo.ExploreSceneResponse;
+import com.npcagent.vo.PositionResponse;
+import com.npcagent.vo.ResourcePointResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -33,19 +37,18 @@ public class ExplorationService {
      * @param sceneCode 目标场景代码
      * @return 切换结果
      */
-    public Map<String, Object> changeScene(String playerId, String sceneCode) {
+    public ChangeSceneResponse changeScene(String playerId, String sceneCode) {
         validateRequired(playerId, "playerId 不能为空");
         validateRequired(sceneCode, "sceneCode 不能为空");
         logger.info("Change scene, playerId={}, sceneCode={}", playerId, sceneCode);
 
-        Map<String, Object> result = new java.util.HashMap<>();
-        result.put("success", true);
-        result.put("sceneCode", sceneCode);
-        result.put("sceneName", getSceneName(sceneCode));
-        result.put("description", getSceneDescription(sceneCode));
-        result.put("npcs", getSceneNpcs(sceneCode));
-        result.put("resourcePoints", getSceneResourcePoints(sceneCode));
-        
+        ChangeSceneResponse result = new ChangeSceneResponse();
+        result.setSuccess(true);
+        result.setSceneCode(sceneCode);
+        result.setSceneName(getSceneName(sceneCode));
+        result.setDescription(getSceneDescription(sceneCode));
+        result.setNpcs(getSceneNpcs(sceneCode));
+        result.setResourcePoints(getSceneResourcePoints(sceneCode));
         return result;
     }
 
@@ -58,36 +61,39 @@ public class ExplorationService {
      * @param positionY Y坐标
      * @return 探索结果
      */
-    public Map<String, Object> exploreScene(String playerId, String sceneCode, int positionX, int positionY) {
+    public ExploreSceneResponse exploreScene(String playerId, String sceneCode, int positionX, int positionY) {
         validateRequired(playerId, "playerId 不能为空");
         validateRequired(sceneCode, "sceneCode 不能为空");
         logger.info("Explore scene, playerId={}, sceneCode={}, x={}, y={}", playerId, sceneCode, positionX, positionY);
 
-        Map<String, Object> result = new java.util.HashMap<>();
-        result.put("success", true);
-        result.put("position", Map.of("x", positionX, "y", positionY));
+        ExploreSceneResponse result = new ExploreSceneResponse();
+        result.setSuccess(true);
+        PositionResponse position = new PositionResponse();
+        position.setX(positionX);
+        position.setY(positionY);
+        result.setPosition(position);
         appendRandomEvent(result);
         return result;
     }
 
-    private void appendRandomEvent(Map<String, Object> result) {
+    private void appendRandomEvent(ExploreSceneResponse result) {
         double eventRoll = random.nextDouble();
         if (eventRoll < RESOURCE_EVENT_THRESHOLD) {
-            result.put("eventType", "resource");
-            result.put("eventDescription", "你发现了一处灵草生长地");
-            result.put("reward", "获得：灵草 x3");
+            result.setEventType("resource");
+            result.setEventDescription("你发现了一处灵草生长地");
+            result.setReward("获得：灵草 x3");
             return;
         }
 
         if (eventRoll < MONSTER_EVENT_THRESHOLD) {
-            result.put("eventType", "monster");
-            result.put("eventDescription", "一只妖兽出现在你面前");
-            result.put("monster", "妖兽：青狼");
+            result.setEventType("monster");
+            result.setEventDescription("一只妖兽出现在你面前");
+            result.setMonster("妖兽：青狼");
             return;
         }
 
-        result.put("eventType", "exploration");
-        result.put("eventDescription", "你在探索中发现了一条小路");
+        result.setEventType("exploration");
+        result.setEventDescription("你在探索中发现了一条小路");
     }
 
     /**
@@ -141,22 +147,30 @@ public class ExplorationService {
      * @param sceneCode 场景代码
      * @return 资源点列表
      */
-    private List<Map<String, Object>> getSceneResourcePoints(String sceneCode) {
-        Map<String, List<Map<String, Object>>> sceneResources = Map.of(
+    private List<ResourcePointResponse> getSceneResourcePoints(String sceneCode) {
+        Map<String, List<ResourcePointResponse>> sceneResources = Map.of(
                 "village", List.of(
-                        Map.of("name", "药田", "type", "herb", "description", "种植着各种灵草的田地"),
-                        Map.of("name", "水井", "type", "water", "description", "清澈的井水，据说有灵气")
+                        buildResourcePoint("药田", "herb", "种植着各种灵草的田地"),
+                        buildResourcePoint("水井", "water", "清澈的井水，据说有灵气")
                 ),
                 "mountain", List.of(
-                        Map.of("name", "灵石矿", "type", "mineral", "description", "蕴含灵气的矿石"),
-                        Map.of("name", "瀑布", "type", "water", "description", "飞流直下的瀑布，水花四溅")
+                        buildResourcePoint("灵石矿", "mineral", "蕴含灵气的矿石"),
+                        buildResourcePoint("瀑布", "water", "飞流直下的瀑布，水花四溅")
                 ),
                 "cave", List.of(
-                        Map.of("name", "宝藏", "type", "treasure", "description", "散发着金光的宝藏"),
-                        Map.of("name", "传承", "type", "artifact", "description", "古老的传承印记")
+                        buildResourcePoint("宝藏", "treasure", "散发着金光的宝藏"),
+                        buildResourcePoint("传承", "artifact", "古老的传承印记")
                 )
         );
         return sceneResources.getOrDefault(sceneCode, List.of());
+    }
+
+    private ResourcePointResponse buildResourcePoint(String name, String type, String description) {
+        ResourcePointResponse response = new ResourcePointResponse();
+        response.setName(name);
+        response.setType(type);
+        response.setDescription(description);
+        return response;
     }
 
     private void validateRequired(String value, String message) {
