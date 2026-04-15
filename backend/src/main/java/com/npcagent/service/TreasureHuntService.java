@@ -1,5 +1,6 @@
 package com.npcagent.service;
 
+import com.npcagent.vo.InventoryOperationResponse;
 import com.npcagent.common.exception.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,8 +58,8 @@ public class TreasureHuntService {
         result.put("message", "你发现了一个宝藏！");
 
         RewardParsed rewardParsed = parseReward(reward);
-        Map<String, Object> grantResult = inventoryService.addItemByName(playerId, rewardParsed.itemName(), rewardParsed.quantity());
-        result.put("rewardGranted", Boolean.TRUE.equals(grantResult.get("success")));
+        InventoryOperationResponse grantResult = inventoryService.addItemByName(playerId, rewardParsed.itemName(), rewardParsed.quantity());
+        result.put("rewardGranted", grantResult.isSuccess());
         result.put("grantDetail", grantResult);
 
         return result;

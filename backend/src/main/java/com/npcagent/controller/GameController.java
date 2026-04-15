@@ -2,9 +2,14 @@ package com.npcagent.controller;
 
 import com.npcagent.common.Result;
 import com.npcagent.common.exception.BusinessException;
-import com.npcagent.api.dto.CombatTurnRequest;
-import com.npcagent.api.dto.ExploreSceneRequest;
-import com.npcagent.api.dto.FreeDialogueRequest;
+import com.npcagent.dto.CombatTurnRequest;
+import com.npcagent.dto.ExploreSceneRequest;
+import com.npcagent.dto.FreeDialogueRequest;
+import com.npcagent.vo.CombatEndResponse;
+import com.npcagent.vo.CombatStartResponse;
+import com.npcagent.vo.CombatTurnResponse;
+import com.npcagent.vo.InventoryItemResponse;
+import com.npcagent.vo.InventoryOperationResponse;
 import com.npcagent.model.DialogueOption;
 import com.npcagent.model.DialogueResult;
 import com.npcagent.service.*;
@@ -115,7 +120,7 @@ public class GameController {
     }
 
     @PostMapping("/combat/start")
-    public Result<Map<String, Object>> startCombat(
+    public Result<CombatStartResponse> startCombat(
             @RequestParam String playerId,
             @RequestParam String monsterId
     ) {
@@ -125,13 +130,13 @@ public class GameController {
     }
 
     @PostMapping("/combat/turn")
-    public Result<Map<String, Object>> executeTurn(@RequestBody CombatTurnRequest request) {
+    public Result<CombatTurnResponse> executeTurn(@RequestBody CombatTurnRequest request) {
         validateCombatTurnRequest(request);
         return Result.success(combatService.executeTurn(request.getBattleId(), request.getAction()));
     }
 
     @PostMapping("/combat/end")
-    public Result<Map<String, Object>> endCombat(
+    public Result<CombatEndResponse> endCombat(
             @RequestParam String battleId,
             @RequestParam String winner
     ) {
@@ -151,13 +156,13 @@ public class GameController {
     }
 
     @GetMapping("/inventory")
-    public Result<List<Map<String, Object>>> getInventory(@RequestParam String playerId) {
+    public Result<List<InventoryItemResponse>> getInventory(@RequestParam String playerId) {
         requireNotBlank(playerId, "playerId 不能为空");
         return Result.success(inventoryService.getInventory(playerId));
     }
 
     @PostMapping("/inventory/use")
-    public Result<Map<String, Object>> useItem(
+    public Result<InventoryOperationResponse> useItem(
             @RequestParam String playerId,
             @RequestParam long itemId
     ) {
@@ -167,7 +172,7 @@ public class GameController {
     }
 
     @PostMapping("/inventory/add")
-    public Result<Map<String, Object>> addItem(
+    public Result<InventoryOperationResponse> addItem(
             @RequestParam String playerId,
             @RequestBody com.npcagent.model.Item item
     ) {
@@ -176,7 +181,7 @@ public class GameController {
     }
 
     @PostMapping("/inventory/remove")
-    public Result<Map<String, Object>> removeItem(
+    public Result<InventoryOperationResponse> removeItem(
             @RequestParam String playerId,
             @RequestParam long itemId,
             @RequestParam int quantity

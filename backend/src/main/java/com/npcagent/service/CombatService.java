@@ -1,5 +1,9 @@
 package com.npcagent.service;
 
+import com.npcagent.vo.CombatEndResponse;
+import com.npcagent.vo.CombatParticipantStatus;
+import com.npcagent.vo.CombatStartResponse;
+import com.npcagent.vo.CombatTurnResponse;
 import com.npcagent.common.exception.BusinessException;
 import com.npcagent.model.Player;
 import com.npcagent.mapper.PlayerMapper;
@@ -10,7 +14,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -50,7 +53,7 @@ public class CombatService {
      * @param monsterId 怪物ID
      * @return 战斗初始化信息
      */
-    public Map<String, Object> startCombat(String playerId, String monsterId) {
+    public CombatStartResponse startCombat(String playerId, String monsterId) {
         validateRequired(playerId, "playerId 不能为空");
         logger.info("Start combat, playerId={}, monsterId={}", playerId, monsterId);
 
@@ -76,28 +79,13 @@ public class CombatService {
         );
         activeBattles.put(battleId, state);
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("battleId", battleId);
-        result.put("player", Map.of(
-                "name", "玩家",
-                "health", state.playerHealth(),
-                "maxHealth", state.playerMaxHealth(),
-                "attack", state.playerAttack(),
-                "defense", state.playerDefense(),
-                "spiritualPower", state.playerSpiritualPower()
-        ));
-        result.put("monster", Map.of(
-                "name", state.monsterName(),
-                "health", state.monsterHealth(),
-                "maxHealth", state.monsterMaxHealth(),
-                "attack", state.monsterAttack(),
-                "defense", state.monsterDefense(),
-                "spiritualPower", DEFAULT_MONSTER_SPIRIT
-        ));
-        result.put("turn", state.turn());
-        result.put("currentTurn", "player");
-        
+        CombatStartResponse result = new CombatStartResponse();
+        result.setSuccess(true);
+        result.setBattleId(battleId);
+        result.setPlayer(buildPlayerStatus(state));
+        result.setMonster(buildMonsterStatus(state));
+        result.setTurn(state.turn());
+        result.setCurrentTurn("player");
         return result;
     }
 
@@ -108,7 +96,7 @@ public class CombatService {
      * @param action 玩家行动
      * @return 战斗结果
      */
-    public Map<String, Object> executeTurn(String battleId, String action) {
+    public CombatTurnResponse executeTurn(String battleId, String action) {
         validateRequired(battleId, "battleId 不能为空");
         validateRequired(action, "action 不能为空");
 
@@ -136,7 +124,7 @@ public class CombatService {
      * @param winner 胜利者
      * @return 战斗结算结果
      */
-    public Map<String, Object> endCombat(String battleId, String winner) {
+    public CombatEndResponse endCombat(String battleId, String winner) {
         validateRequired(battleId, "battleId 不能为空");
         BattleState state = activeBattles.remove(battleId);
         if (state == null) {
@@ -149,10 +137,10 @@ public class CombatService {
         }
         logger.info("End combat, battleId={}, winner={}", battleId, finalWinner);
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("battleId", battleId);
-        result.put("winner", finalWinner);
+        CombatEndResponse result = new CombatEndResponse();
+        result.setSuccess(true);
+        result.setBattleId(battleId);
+        result.setWinner(finalWinner);
 
         if ("player".equals(finalWinner)) {
             int exp = WIN_EXP_REWARD;
@@ -160,11 +148,11 @@ public class CombatService {
             inventoryService.addItemByName(state.playerId(), "灵草", 2);
             inventoryService.addItemByName(state.playerId(), "灵石", 10);
 
-            result.put("experience", exp);
-            result.put("rewards", List.of("获得：灵草 x2", "获得：灵石 x10", "获得：经验值 +50"));
-            result.put("message", "战斗胜利！你获得了奖励。");
+            result.setExperience(exp);
+            result.setRewards(List.of("获得：灵草 x2", "获得：灵石 x10", "获得：经验值 +50"));
+            result.setMessage("战斗胜利！你获得了奖励。");
         } else {
-            result.put("message", "战斗失败！你需要休息一下。");
+            result.setMessage("战斗失败！你需要休息一下。");
         }
 
         return result;
@@ -236,26 +224,48 @@ public class CombatService {
         return monsterHealth <= 0 || playerHealth <= 0;
     }
 
-    private Map<String, Object> buildTurnResult(
+    private CombatTurnResponse buildTurnResult(
             String battleId,
             BattleState next,
             AttackResult playerAttackResult,
             AttackResult monsterAttackResult,
             boolean ended
     ) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("battleId", battleId);
-        result.put("turn", next.turn());
-        result.put("currentTurn", "monster");
-        result.put("playerAction", playerAttackResult.renderedAction());
-        result.put("playerDamage", playerAttackResult.damage());
-        result.put("monsterAction", monsterAttackResult.renderedAction());
-        result.put("monsterDamage", monsterAttackResult.damage());
-        result.put("playerHealth", next.playerHealth());
-        result.put("monsterHealth", next.monsterHealth());
-        result.put("battleStatus", ended ? BATTLE_STATUS_ENDED : BATTLE_STATUS_ONGOING);
+        CombatTurnResponse result = new CombatTurnResponse();
+        result.setSuccess(true);
+        result.setBattleId(battleId);
+        result.setTurn(next.turn());
+        result.setCurrentTurn("monster");
+        result.setPlayerAction(playerAttackResult.renderedAction());
+        result.setPlayerDamage(playerAttackResult.damage());
+        result.setMonsterAction(monsterAttackResult.renderedAction());
+        result.setMonsterDamage(monsterAttackResult.damage());
+        result.setPlayerHealth(next.playerHealth());
+        result.setMonsterHealth(next.monsterHealth());
+        result.setBattleStatus(ended ? BATTLE_STATUS_ENDED : BATTLE_STATUS_ONGOING);
         return result;
+    }
+
+    private CombatParticipantStatus buildPlayerStatus(BattleState state) {
+        CombatParticipantStatus status = new CombatParticipantStatus();
+        status.setName("玩家");
+        status.setHealth(state.playerHealth());
+        status.setMaxHealth(state.playerMaxHealth());
+        status.setAttack(state.playerAttack());
+        status.setDefense(state.playerDefense());
+        status.setSpiritualPower(state.playerSpiritualPower());
+        return status;
+    }
+
+    private CombatParticipantStatus buildMonsterStatus(BattleState state) {
+        CombatParticipantStatus status = new CombatParticipantStatus();
+        status.setName(state.monsterName());
+        status.setHealth(state.monsterHealth());
+        status.setMaxHealth(state.monsterMaxHealth());
+        status.setAttack(state.monsterAttack());
+        status.setDefense(state.monsterDefense());
+        status.setSpiritualPower(DEFAULT_MONSTER_SPIRIT);
+        return status;
     }
 
     private record BattleState(

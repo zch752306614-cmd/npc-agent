@@ -1,5 +1,7 @@
 package com.npcagent.service;
 
+import com.npcagent.vo.InventoryItemResponse;
+import com.npcagent.vo.InventoryOperationResponse;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.npcagent.common.exception.BusinessException;
 import com.npcagent.mapper.ItemMapper;
@@ -14,9 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 背包服务
@@ -50,7 +50,7 @@ public class InventoryService {
      * @param playerId 玩家ID
      * @return 背包物品列表
      */
-    public List<Map<String, Object>> getInventory(String playerId) {
+    public List<InventoryItemResponse> getInventory(String playerId) {
         requireExistingPlayer(playerId);
         logger.info("Load inventory, playerId={}", playerId);
 
@@ -59,8 +59,8 @@ public class InventoryService {
         return buildInventoryResponse(rows);
     }
 
-    private List<Map<String, Object>> buildInventoryResponse(List<PlayerInventory> rows) {
-        List<Map<String, Object>> inventory = new ArrayList<>();
+    private List<InventoryItemResponse> buildInventoryResponse(List<PlayerInventory> rows) {
+        List<InventoryItemResponse> inventory = new ArrayList<>();
         for (PlayerInventory row : rows) {
             if (row.getQuantity() == null || row.getQuantity() <= 0) {
                 continue;
@@ -70,13 +70,13 @@ public class InventoryService {
                 continue;
             }
 
-            Map<String, Object> itemInfo = new HashMap<>();
-            itemInfo.put("id", item.getId());
-            itemInfo.put("name", item.getName());
-            itemInfo.put("type", item.getType());
-            itemInfo.put("quantity", row.getQuantity());
-            itemInfo.put("description", item.getDescription());
-            itemInfo.put("rarity", item.getRarity());
+            InventoryItemResponse itemInfo = new InventoryItemResponse();
+            itemInfo.setId(item.getId());
+            itemInfo.setName(item.getName());
+            itemInfo.setType(item.getType());
+            itemInfo.setQuantity(row.getQuantity());
+            itemInfo.setDescription(item.getDescription());
+            itemInfo.setRarity(item.getRarity());
             inventory.add(itemInfo);
         }
         return inventory;
@@ -89,7 +89,7 @@ public class InventoryService {
      * @param itemId 物品ID
      * @return 使用结果
      */
-    public Map<String, Object> useItem(String playerId, long itemId) {
+    public InventoryOperationResponse useItem(String playerId, long itemId) {
         requireExistingPlayer(playerId);
         logger.info("Use item, playerId={}, itemId={}", playerId, itemId);
 
@@ -112,14 +112,7 @@ public class InventoryService {
             playerInventoryMapper.updateById(inventoryRow);
         }
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("itemId", itemId);
-        result.put("itemName", item.getName());
-        result.put("effect", "已消耗 1 个");
-        result.put("message", "你使用了 " + item.getName() + "。");
-
-        return result;
+        return buildOperationResult(true, itemId, item.getName(), null, remain, "已消耗 1 个", "你使用了 " + item.getName() + "。");
     }
 
     /**
@@ -129,7 +122,7 @@ public class InventoryService {
      * @param item 物品信息
      * @return 添加结果
      */
-    public Map<String, Object> addItem(String playerId, Item item) {
+    public InventoryOperationResponse addItem(String playerId, Item item) {
         requireExistingPlayer(playerId);
         if (item == null) {
             throw BusinessException.badRequest("item 不能为空");
@@ -145,14 +138,7 @@ public class InventoryService {
         upsertInventory(playerId, itemId, 1);
         PlayerInventory row = findInventoryRow(playerId, itemId);
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("itemId", itemId);
-        result.put("itemName", item.getName());
-        result.put("quantity", row == null ? 0 : row.getQuantity());
-        result.put("message", "物品已添加到背包。");
-
-        return result;
+        return buildOperationResult(true, itemId, item.getName(), row == null ? 0 : row.getQuantity(), null, null, "物品已添加到背包。");
     }
 
     /**
@@ -163,7 +149,7 @@ public class InventoryService {
      * @param quantity 数量
      * @return 移除结果
      */
-    public Map<String, Object> removeItem(String playerId, long itemId, int quantity) {
+    public InventoryOperationResponse removeItem(String playerId, long itemId, int quantity) {
         requireExistingPlayer(playerId);
         logger.info("Remove item, playerId={}, itemId={}, quantity={}", playerId, itemId, quantity);
 
@@ -186,20 +172,13 @@ public class InventoryService {
             playerInventoryMapper.updateById(inventoryRow);
         }
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("itemId", itemId);
-        result.put("quantity", quantity);
-        result.put("remain", remain);
-        result.put("message", "物品已从背包移除。");
-
-        return result;
+        return buildOperationResult(true, itemId, null, quantity, remain, null, "物品已从背包移除。");
     }
 
     /**
      * 按物品名添加奖励（用于寻宝/战斗掉落）
      */
-    public Map<String, Object> addItemByName(String playerId, String itemName, int quantity) {
+    public InventoryOperationResponse addItemByName(String playerId, String itemName, int quantity) {
         if (quantity <= 0) {
             throw BusinessException.badRequest("数量必须大于0");
         }
@@ -217,12 +196,27 @@ public class InventoryService {
         upsertInventory(playerId, item.getId(), quantity);
         PlayerInventory row = findInventoryRow(playerId, item.getId());
 
-        return Map.of(
-                "success", true,
-                "itemId", item.getId(),
-                "itemName", itemName,
-                "quantity", row == null ? quantity : row.getQuantity()
-        );
+        return buildOperationResult(true, item.getId(), itemName, row == null ? quantity : row.getQuantity(), null, null, "奖励已发放");
+    }
+
+    private InventoryOperationResponse buildOperationResult(
+            boolean success,
+            Long itemId,
+            String itemName,
+            Integer quantity,
+            Integer remain,
+            String effect,
+            String message
+    ) {
+        InventoryOperationResponse response = new InventoryOperationResponse();
+        response.setSuccess(success);
+        response.setItemId(itemId);
+        response.setItemName(itemName);
+        response.setQuantity(quantity);
+        response.setRemain(remain);
+        response.setEffect(effect);
+        response.setMessage(message);
+        return response;
     }
 
     private Player getPlayer(String playerId) {
