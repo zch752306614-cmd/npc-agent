@@ -1,12 +1,15 @@
 package com.npcagent.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.npcagent.common.exception.BusinessException;
 import com.npcagent.mapper.ItemMapper;
 import com.npcagent.mapper.PlayerInventoryMapper;
 import com.npcagent.mapper.PlayerMapper;
 import com.npcagent.model.Item;
 import com.npcagent.model.PlayerInventory;
 import com.npcagent.model.Player;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +30,11 @@ import java.util.Map;
 @Service
 public class InventoryService {
 
+    private static final Logger logger = LoggerFactory.getLogger(InventoryService.class);
+    private static final int STARTER_HERB_COUNT = 3;
+    private static final int STARTER_STONE_COUNT = 10;
+    private static final int STARTER_PILL_COUNT = 1;
+
     @Autowired
     private PlayerMapper playerMapper;
 
@@ -43,17 +51,16 @@ public class InventoryService {
      * @return 背包物品列表
      */
     public List<Map<String, Object>> getInventory(String playerId) {
-        Player player = getPlayer(playerId);
-        if (player == null) {
-            return new ArrayList<>();
-        }
+        requireExistingPlayer(playerId);
+        logger.info("Load inventory, playerId={}", playerId);
 
         initializeStarterInventoryIfAbsent(playerId);
-        QueryWrapper<PlayerInventory> inventoryQuery = new QueryWrapper<>();
-        inventoryQuery.eq("player_id", playerId);
-        List<PlayerInventory> rows = playerInventoryMapper.selectList(inventoryQuery);
-        List<Map<String, Object>> inventory = new ArrayList<>();
+        List<PlayerInventory> rows = getPlayerInventoryRows(playerId);
+        return buildInventoryResponse(rows);
+    }
 
+    private List<Map<String, Object>> buildInventoryResponse(List<PlayerInventory> rows) {
+        List<Map<String, Object>> inventory = new ArrayList<>();
         for (PlayerInventory row : rows) {
             if (row.getQuantity() == null || row.getQuantity() <= 0) {
                 continue;
@@ -72,7 +79,6 @@ public class InventoryService {
             itemInfo.put("rarity", item.getRarity());
             inventory.add(itemInfo);
         }
-
         return inventory;
     }
 
@@ -84,33 +90,21 @@ public class InventoryService {
      * @return 使用结果
      */
     public Map<String, Object> useItem(String playerId, long itemId) {
-        Player player = getPlayer(playerId);
-        if (player == null) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "玩家不存在");
-            return result;
-        }
+        requireExistingPlayer(playerId);
+        logger.info("Use item, playerId={}, itemId={}", playerId, itemId);
 
         initializeStarterInventoryIfAbsent(playerId);
         PlayerInventory inventoryRow = findInventoryRow(playerId, itemId);
-        int currentCount = inventoryRow == null ? 0 : inventoryRow.getQuantity();
-        if (currentCount <= 0 || inventoryRow == null) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "背包中没有该物品");
-            return result;
+        if (inventoryRow == null || inventoryRow.getQuantity() == null || inventoryRow.getQuantity() <= 0) {
+            throw BusinessException.notFound("背包中没有该物品");
         }
 
         Item item = itemMapper.selectById(itemId);
         if (item == null) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "物品不存在");
-            return result;
+            throw BusinessException.notFound("物品不存在");
         }
 
-        int remain = currentCount - 1;
+        int remain = inventoryRow.getQuantity() - 1;
         if (remain <= 0) {
             playerInventoryMapper.deleteById(inventoryRow.getId());
         } else {
@@ -136,21 +130,16 @@ public class InventoryService {
      * @return 添加结果
      */
     public Map<String, Object> addItem(String playerId, Item item) {
-        Player player = getPlayer(playerId);
-        if (player == null) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "玩家不存在");
-            return result;
+        requireExistingPlayer(playerId);
+        if (item == null) {
+            throw BusinessException.badRequest("item 不能为空");
         }
+        logger.info("Add item, playerId={}, itemId={}, itemName={}", playerId, item.getId(), item.getName());
 
         initializeStarterInventoryIfAbsent(playerId);
         long itemId = item.getId() == null ? -1L : item.getId();
         if (itemId <= 0) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "物品ID无效");
-            return result;
+            throw BusinessException.badRequest("物品ID无效");
         }
 
         upsertInventory(playerId, itemId, 1);
@@ -175,29 +164,18 @@ public class InventoryService {
      * @return 移除结果
      */
     public Map<String, Object> removeItem(String playerId, long itemId, int quantity) {
-        Player player = getPlayer(playerId);
-        if (player == null) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "玩家不存在");
-            return result;
-        }
+        requireExistingPlayer(playerId);
+        logger.info("Remove item, playerId={}, itemId={}, quantity={}", playerId, itemId, quantity);
 
         if (quantity <= 0) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "数量必须大于0");
-            return result;
+            throw BusinessException.badRequest("数量必须大于0");
         }
 
         initializeStarterInventoryIfAbsent(playerId);
         PlayerInventory inventoryRow = findInventoryRow(playerId, itemId);
         int currentCount = inventoryRow == null ? 0 : inventoryRow.getQuantity();
         if (inventoryRow == null || currentCount < quantity) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "背包物品数量不足");
-            return result;
+            throw BusinessException.badRequest("背包物品数量不足");
         }
 
         int remain = currentCount - quantity;
@@ -223,19 +201,16 @@ public class InventoryService {
      */
     public Map<String, Object> addItemByName(String playerId, String itemName, int quantity) {
         if (quantity <= 0) {
-            return Map.of("success", false, "message", "数量必须大于0");
+            throw BusinessException.badRequest("数量必须大于0");
         }
-
-        Player player = getPlayer(playerId);
-        if (player == null) {
-            return Map.of("success", false, "message", "玩家不存在");
-        }
+        requireExistingPlayer(playerId);
+        logger.info("Add item by name, playerId={}, itemName={}, quantity={}", playerId, itemName, quantity);
 
         QueryWrapper<Item> query = new QueryWrapper<>();
         query.eq("name", itemName);
         Item item = itemMapper.selectOne(query);
         if (item == null) {
-            return Map.of("success", false, "message", "奖励物品不存在: " + itemName);
+            throw BusinessException.notFound("奖励物品不存在: " + itemName);
         }
 
         initializeStarterInventoryIfAbsent(playerId);
@@ -256,6 +231,15 @@ public class InventoryService {
         return playerMapper.selectOne(playerQuery);
     }
 
+    private void requireExistingPlayer(String playerId) {
+        if (playerId == null || playerId.isBlank()) {
+            throw BusinessException.badRequest("playerId 不能为空");
+        }
+        if (getPlayer(playerId) == null) {
+            throw BusinessException.notFound("玩家不存在");
+        }
+    }
+
     private void initializeStarterInventoryIfAbsent(String playerId) {
         QueryWrapper<PlayerInventory> query = new QueryWrapper<>();
         query.eq("player_id", playerId);
@@ -264,9 +248,9 @@ public class InventoryService {
             return;
         }
 
-        addIfExists(playerId, "灵草", 3);
-        addIfExists(playerId, "灵石", 10);
-        addIfExists(playerId, "基础丹药", 1);
+        addIfExists(playerId, "灵草", STARTER_HERB_COUNT);
+        addIfExists(playerId, "灵石", STARTER_STONE_COUNT);
+        addIfExists(playerId, "基础丹药", STARTER_PILL_COUNT);
     }
 
     private void addIfExists(String playerId, String itemName, int quantity) {
@@ -282,6 +266,12 @@ public class InventoryService {
         QueryWrapper<PlayerInventory> query = new QueryWrapper<>();
         query.eq("player_id", playerId).eq("item_id", itemId);
         return playerInventoryMapper.selectOne(query);
+    }
+
+    private List<PlayerInventory> getPlayerInventoryRows(String playerId) {
+        QueryWrapper<PlayerInventory> query = new QueryWrapper<>();
+        query.eq("player_id", playerId);
+        return playerInventoryMapper.selectList(query);
     }
 
     private void upsertInventory(String playerId, long itemId, int delta) {

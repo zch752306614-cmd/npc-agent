@@ -4,7 +4,6 @@ import com.npcagent.common.Result;
 import com.npcagent.service.StoryVectorInitService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,7 +21,6 @@ public class StoryInitController {
 
     private final StoryVectorInitService storyVectorInitService;
 
-    @Autowired
     public StoryInitController(StoryVectorInitService storyVectorInitService) {
         this.storyVectorInitService = storyVectorInitService;
     }
@@ -34,14 +32,9 @@ public class StoryInitController {
      */
     @PostMapping("/vectors")
     public Result<String> initStoryVectors() {
-        try {
-            logger.info("接收到初始化剧情向量库的请求");
-            storyVectorInitService.initStoryVectors();
-            return Result.success("剧情向量库初始化成功");
-        } catch (Exception e) {
-            logger.error("初始化剧情向量库失败: {}", e.getMessage(), e);
-            return Result.error("初始化剧情向量库失败: " + e.getMessage());
-        }
+        logger.info("Receive init story vectors request");
+        storyVectorInitService.initStoryVectors();
+        return Result.success("剧情向量库初始化成功");
     }
 
     /**
@@ -51,13 +44,8 @@ public class StoryInitController {
      */
     @PostMapping("/vectors/reinit")
     public Result<String> reinitStoryVectors() {
-        try {
-            logger.info("接收到重新初始化剧情向量库的请求");
-            storyVectorInitService.reinitStoryVectors();
-            return Result.success("剧情向量库重新初始化成功");
-        } catch (Exception e) {
-            logger.error("重新初始化剧情向量库失败: {}", e.getMessage(), e);
-            return Result.error("重新初始化剧情向量库失败: " + e.getMessage());
-        }
+        logger.info("Receive reinit story vectors request");
+        storyVectorInitService.reinitStoryVectors();
+        return Result.success("剧情向量库重新初始化成功");
     }
 }

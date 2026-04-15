@@ -1,11 +1,13 @@
 package com.npcagent.service;
 
-import com.npcagent.model.Scene;
-import com.npcagent.model.Player;
+import com.npcagent.common.exception.BusinessException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 /**
  * 探索服务
@@ -19,6 +21,11 @@ import java.util.Map;
 @Service
 public class ExplorationService {
 
+    private static final Logger logger = LoggerFactory.getLogger(ExplorationService.class);
+    private static final double RESOURCE_EVENT_THRESHOLD = 0.3;
+    private static final double MONSTER_EVENT_THRESHOLD = 0.6;
+    private final Random random = new Random();
+
     /**
      * 切换场景
      *
@@ -27,11 +34,10 @@ public class ExplorationService {
      * @return 切换结果
      */
     public Map<String, Object> changeScene(String playerId, String sceneCode) {
-        // 检查场景是否存在
-        // 检查玩家是否满足场景进入条件
-        // 更新玩家位置
-        // 返回场景信息
-        
+        validateRequired(playerId, "playerId 不能为空");
+        validateRequired(sceneCode, "sceneCode 不能为空");
+        logger.info("Change scene, playerId={}, sceneCode={}", playerId, sceneCode);
+
         Map<String, Object> result = new java.util.HashMap<>();
         result.put("success", true);
         result.put("sceneCode", sceneCode);
@@ -53,31 +59,35 @@ public class ExplorationService {
      * @return 探索结果
      */
     public Map<String, Object> exploreScene(String playerId, String sceneCode, int positionX, int positionY) {
-        // 检查位置是否有效
-        // 触发随机事件
-        // 发现资源点
-        // 遇到怪物
-        
+        validateRequired(playerId, "playerId 不能为空");
+        validateRequired(sceneCode, "sceneCode 不能为空");
+        logger.info("Explore scene, playerId={}, sceneCode={}, x={}, y={}", playerId, sceneCode, positionX, positionY);
+
         Map<String, Object> result = new java.util.HashMap<>();
         result.put("success", true);
         result.put("position", Map.of("x", positionX, "y", positionY));
-        
-        // 模拟随机事件
-        double random = Math.random();
-        if (random < 0.3) {
+        appendRandomEvent(result);
+        return result;
+    }
+
+    private void appendRandomEvent(Map<String, Object> result) {
+        double eventRoll = random.nextDouble();
+        if (eventRoll < RESOURCE_EVENT_THRESHOLD) {
             result.put("eventType", "resource");
             result.put("eventDescription", "你发现了一处灵草生长地");
             result.put("reward", "获得：灵草 x3");
-        } else if (random < 0.6) {
+            return;
+        }
+
+        if (eventRoll < MONSTER_EVENT_THRESHOLD) {
             result.put("eventType", "monster");
             result.put("eventDescription", "一只妖兽出现在你面前");
             result.put("monster", "妖兽：青狼");
-        } else {
-            result.put("eventType", "exploration");
-            result.put("eventDescription", "你在探索中发现了一条小路");
+            return;
         }
-        
-        return result;
+
+        result.put("eventType", "exploration");
+        result.put("eventDescription", "你在探索中发现了一条小路");
     }
 
     /**
@@ -147,5 +157,11 @@ public class ExplorationService {
                 )
         );
         return sceneResources.getOrDefault(sceneCode, List.of());
+    }
+
+    private void validateRequired(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw BusinessException.badRequest(message);
+        }
     }
 }

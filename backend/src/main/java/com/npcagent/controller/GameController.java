@@ -1,6 +1,10 @@
 package com.npcagent.controller;
 
 import com.npcagent.common.Result;
+import com.npcagent.common.exception.BusinessException;
+import com.npcagent.controller.dto.CombatTurnRequest;
+import com.npcagent.controller.dto.ExploreSceneRequest;
+import com.npcagent.controller.dto.FreeDialogueRequest;
 import com.npcagent.model.DialogueOption;
 import com.npcagent.model.DialogueResult;
 import com.npcagent.service.*;
@@ -51,312 +55,188 @@ public class GameController {
         this.storyNodeService = storyNodeService;
     }
 
-    // ==================== 对话系统接口 ====================
-
-    /**
-     * 获取NPC对话选项
-     *
-     * @param npcCode NPC代码
-     * @param playerId 玩家ID
-     * @return 统一返回结果，包含对话选项列表
-     */
     @GetMapping("/dialogue/options")
-    public Result<List<DialogueOption>> getDialogueOptions(@RequestParam String npcCode, @RequestParam String playerId) {
-        try {
-            List<DialogueOption> options = dialogueService.getNpcDialogueOptions(npcCode, playerId);
-            return Result.success(options);
-        } catch (Exception e) {
-            return Result.error("获取对话选项失败: " + e.getMessage());
-        }
+    public Result<List<DialogueOption>> getDialogueOptions(
+            @RequestParam String npcCode,
+            @RequestParam String playerId
+    ) {
+        requireNotBlank(npcCode, "npcCode 不能为空");
+        requireNotBlank(playerId, "playerId 不能为空");
+        return Result.success(dialogueService.getNpcDialogueOptions(npcCode, playerId));
     }
 
-    /**
-     * 处理固定选项选择
-     *
-     * @param npcCode NPC代码
-     * @param optionId 选项ID
-     * @param playerId 玩家ID
-     * @return 统一返回结果，包含对话结果
-     */
     @PostMapping("/dialogue/fixed")
-    public Result<DialogueResult> handleFixedOption(@RequestParam String npcCode, @RequestParam String optionId, @RequestParam String playerId) {
-        try {
-            DialogueResult result = dialogueService.handleFixedOption(npcCode, optionId, playerId);
-            return Result.success(result);
-        } catch (Exception e) {
-            return Result.error("处理对话选项失败: " + e.getMessage());
-        }
+    public Result<DialogueResult> handleFixedOption(
+            @RequestParam String npcCode,
+            @RequestParam String optionId,
+            @RequestParam String playerId
+    ) {
+        requireNotBlank(npcCode, "npcCode 不能为空");
+        requireNotBlank(optionId, "optionId 不能为空");
+        requireNotBlank(playerId, "playerId 不能为空");
+        return Result.success(dialogueService.handleFixedOption(npcCode, optionId, playerId));
     }
 
-    /**
-     * 处理自由输入
-     *
-     * @param data 请求数据
-     * @return 统一返回结果，包含对话结果
-     */
     @PostMapping("/dialogue/free")
-    public Result<DialogueResult> handleFreeInput(@RequestBody Map<String, Object> data) {
-        try {
-            String npcCode = (String) data.get("npcCode");
-            String playerInput = (String) data.get("input");
-            String playerId = (String) data.get("playerId");
-
-            if (npcCode == null || playerInput == null || playerId == null) {
-                return Result.badRequest("缺少必要参数: npcCode, input, playerId");
-            }
-
-            // 转换对话历史格式
-            List<com.npcagent.rag.DialogueHistory> dialogueHistory = new java.util.ArrayList<>();
-            Object historyObj = data.get("history");
-            if (historyObj instanceof List<?> historyList) {
-                for (Object item : historyList) {
-                    if (!(item instanceof Map<?, ?> rawMsg)) {
-                        continue;
-                    }
-                    com.npcagent.rag.DialogueHistory dh = new com.npcagent.rag.DialogueHistory();
-                    String speaker = rawMsg.get("speaker") instanceof String s ? s : null;
-                    String text = rawMsg.get("text") instanceof String t ? t : null;
-                    dh.setSpeaker(speaker);
-                    if ("player".equals(speaker)) {
-                        dh.setPlayerInput(text);
-                    } else {
-                        dh.setNpcResponse(text);
-                    }
-                    dialogueHistory.add(dh);
-                }
-            }
-
-            DialogueResult result = dialogueService.handleFreeInput(npcCode, playerInput, dialogueHistory, playerId);
-            return Result.success(result);
-        } catch (Exception e) {
-            return Result.error("处理自由输入失败: " + e.getMessage());
-        }
+    public Result<DialogueResult> handleFreeInput(@RequestBody FreeDialogueRequest request) {
+        validateFreeDialogueRequest(request);
+        return Result.success(dialogueService.handleFreeInput(request));
     }
 
-    /**
-     * 获取对话历史
-     *
-     * @param playerId 玩家ID
-     * @param npcCode NPC代码
-     * @return 统一返回结果，包含对话历史
-     */
     @GetMapping("/dialogue/history")
-    public Result<List<com.npcagent.rag.DialogueHistory>> getDialogueHistory(@RequestParam String playerId, @RequestParam String npcCode) {
-        try {
-            List<com.npcagent.rag.DialogueHistory> history = dialogueService.getDialogueHistory(playerId, npcCode);
-            return Result.success(history);
-        } catch (Exception e) {
-            return Result.error("获取对话历史失败: " + e.getMessage());
-        }
+    public Result<List<com.npcagent.rag.DialogueHistory>> getDialogueHistory(
+            @RequestParam String playerId,
+            @RequestParam String npcCode
+    ) {
+        requireNotBlank(playerId, "playerId 不能为空");
+        requireNotBlank(npcCode, "npcCode 不能为空");
+        return Result.success(dialogueService.getDialogueHistory(playerId, npcCode));
     }
 
-    // ==================== 探索系统接口 ====================
-
-    /**
-     * 切换场景
-     *
-     * @param playerId 玩家ID
-     * @param sceneCode 场景代码
-     * @return 统一返回结果，包含切换结果
-     */
     @PostMapping("/exploration/change-scene")
-    public Result<Map<String, Object>> changeScene(@RequestParam String playerId, @RequestParam String sceneCode) {
-        try {
-            Map<String, Object> result = explorationService.changeScene(playerId, sceneCode);
-            return Result.success(result);
-        } catch (Exception e) {
-            return Result.error("切换场景失败: " + e.getMessage());
-        }
+    public Result<Map<String, Object>> changeScene(
+            @RequestParam String playerId,
+            @RequestParam String sceneCode
+    ) {
+        requireNotBlank(playerId, "playerId 不能为空");
+        requireNotBlank(sceneCode, "sceneCode 不能为空");
+        return Result.success(explorationService.changeScene(playerId, sceneCode));
     }
 
-    /**
-     * 探索场景
-     *
-     * @param data 请求数据
-     * @return 统一返回结果，包含探索结果
-     */
     @PostMapping("/exploration/explore")
-    public Result<Map<String, Object>> exploreScene(@RequestBody Map<String, Object> data) {
-        try {
-            String playerId = (String) data.get("playerId");
-            String sceneCode = (String) data.get("sceneCode");
-            int positionX = (int) data.getOrDefault("positionX", 0);
-            int positionY = (int) data.getOrDefault("positionY", 0);
-
-            if (playerId == null || sceneCode == null) {
-                return Result.badRequest("缺少必要参数: playerId, sceneCode");
-            }
-
-            Map<String, Object> result = explorationService.exploreScene(playerId, sceneCode, positionX, positionY);
-            return Result.success(result);
-        } catch (Exception e) {
-            return Result.error("探索场景失败: " + e.getMessage());
-        }
+    public Result<Map<String, Object>> exploreScene(@RequestBody ExploreSceneRequest request) {
+        validateExploreRequest(request);
+        return Result.success(explorationService.exploreScene(
+                request.getPlayerId(),
+                request.getSceneCode(),
+                defaultInt(request.getPositionX()),
+                defaultInt(request.getPositionY())
+        ));
     }
 
-    // ==================== 战斗系统接口 ====================
-
-    /**
-     * 开始战斗
-     *
-     * @param playerId 玩家ID
-     * @param monsterId 怪物ID
-     * @return 统一返回结果，包含战斗初始化信息
-     */
     @PostMapping("/combat/start")
-    public Result<Map<String, Object>> startCombat(@RequestParam String playerId, @RequestParam String monsterId) {
-        try {
-            Map<String, Object> result = combatService.startCombat(playerId, monsterId);
-            return Result.success(result);
-        } catch (Exception e) {
-            return Result.error("开始战斗失败: " + e.getMessage());
-        }
+    public Result<Map<String, Object>> startCombat(
+            @RequestParam String playerId,
+            @RequestParam String monsterId
+    ) {
+        requireNotBlank(playerId, "playerId 不能为空");
+        requireNotBlank(monsterId, "monsterId 不能为空");
+        return Result.success(combatService.startCombat(playerId, monsterId));
     }
 
-    /**
-     * 执行战斗回合
-     *
-     * @param data 请求数据
-     * @return 统一返回结果，包含战斗结果
-     */
     @PostMapping("/combat/turn")
-    public Result<Map<String, Object>> executeTurn(@RequestBody Map<String, Object> data) {
-        try {
-            String battleId = (String) data.get("battleId");
-            String action = (String) data.get("action");
-
-            if (battleId == null || action == null) {
-                return Result.badRequest("缺少必要参数: battleId, action");
-            }
-
-            Map<String, Object> result = combatService.executeTurn(battleId, action);
-            return Result.success(result);
-        } catch (Exception e) {
-            return Result.error("执行战斗回合失败: " + e.getMessage());
-        }
+    public Result<Map<String, Object>> executeTurn(@RequestBody CombatTurnRequest request) {
+        validateCombatTurnRequest(request);
+        return Result.success(combatService.executeTurn(request.getBattleId(), request.getAction()));
     }
 
-    /**
-     * 结束战斗
-     *
-     * @param battleId 战斗ID
-     * @param winner 胜利者
-     * @return 统一返回结果，包含战斗结算结果
-     */
     @PostMapping("/combat/end")
-    public Result<Map<String, Object>> endCombat(@RequestParam String battleId, @RequestParam String winner) {
-        try {
-            Map<String, Object> result = combatService.endCombat(battleId, winner);
-            return Result.success(result);
-        } catch (Exception e) {
-            return Result.error("结束战斗失败: " + e.getMessage());
-        }
+    public Result<Map<String, Object>> endCombat(
+            @RequestParam String battleId,
+            @RequestParam String winner
+    ) {
+        requireNotBlank(battleId, "battleId 不能为空");
+        requireNotBlank(winner, "winner 不能为空");
+        return Result.success(combatService.endCombat(battleId, winner));
     }
 
-    // ==================== 寻宝系统接口 ====================
-
-    /**
-     * 开始寻宝
-     *
-     * @param playerId 玩家ID
-     * @param location 寻宝地点
-     * @return 统一返回结果，包含寻宝结果
-     */
     @PostMapping("/treasure-hunt/start")
-    public Result<Map<String, Object>> startTreasureHunt(@RequestParam String playerId, @RequestParam String location) {
-        try {
-            Map<String, Object> result = treasureHuntService.startTreasureHunt(playerId, location);
-            return Result.success(result);
-        } catch (Exception e) {
-            return Result.error("开始寻宝失败: " + e.getMessage());
-        }
+    public Result<Map<String, Object>> startTreasureHunt(
+            @RequestParam String playerId,
+            @RequestParam String location
+    ) {
+        requireNotBlank(playerId, "playerId 不能为空");
+        requireNotBlank(location, "location 不能为空");
+        return Result.success(treasureHuntService.startTreasureHunt(playerId, location));
     }
 
-    // ==================== 背包系统接口 ====================
-
-    /**
-     * 获取背包
-     *
-     * @param playerId 玩家ID
-     * @return 统一返回结果，包含背包物品列表
-     */
     @GetMapping("/inventory")
     public Result<List<Map<String, Object>>> getInventory(@RequestParam String playerId) {
-        try {
-            List<Map<String, Object>> inventory = inventoryService.getInventory(playerId);
-            return Result.success(inventory);
-        } catch (Exception e) {
-            return Result.error("获取背包失败: " + e.getMessage());
-        }
+        requireNotBlank(playerId, "playerId 不能为空");
+        return Result.success(inventoryService.getInventory(playerId));
     }
 
-    /**
-     * 使用物品
-     *
-     * @param playerId 玩家ID
-     * @param itemId 物品ID
-     * @return 统一返回结果，包含使用结果
-     */
     @PostMapping("/inventory/use")
-    public Result<Map<String, Object>> useItem(@RequestParam String playerId, @RequestParam long itemId) {
-        try {
-            Map<String, Object> result = inventoryService.useItem(playerId, itemId);
-            return Result.success(result);
-        } catch (Exception e) {
-            return Result.error("使用物品失败: " + e.getMessage());
-        }
+    public Result<Map<String, Object>> useItem(
+            @RequestParam String playerId,
+            @RequestParam long itemId
+    ) {
+        requireNotBlank(playerId, "playerId 不能为空");
+        requirePositive(itemId, "itemId 必须大于0");
+        return Result.success(inventoryService.useItem(playerId, itemId));
     }
 
-    /**
-     * 添加物品
-     *
-     * @param playerId 玩家ID
-     * @param item 物品信息
-     * @return 统一返回结果，包含添加结果
-     */
     @PostMapping("/inventory/add")
-    public Result<Map<String, Object>> addItem(@RequestParam String playerId, @RequestBody com.npcagent.model.Item item) {
-        try {
-            Map<String, Object> result = inventoryService.addItem(playerId, item);
-            return Result.success(result);
-        } catch (Exception e) {
-            return Result.error("添加物品失败: " + e.getMessage());
-        }
+    public Result<Map<String, Object>> addItem(
+            @RequestParam String playerId,
+            @RequestBody com.npcagent.model.Item item
+    ) {
+        requireNotBlank(playerId, "playerId 不能为空");
+        return Result.success(inventoryService.addItem(playerId, item));
     }
 
-    /**
-     * 移除物品
-     *
-     * @param playerId 玩家ID
-     * @param itemId 物品ID
-     * @param quantity 数量
-     * @return 统一返回结果，包含移除结果
-     */
     @PostMapping("/inventory/remove")
-    public Result<Map<String, Object>> removeItem(@RequestParam String playerId, @RequestParam long itemId, @RequestParam int quantity) {
-        try {
-            Map<String, Object> result = inventoryService.removeItem(playerId, itemId, quantity);
-            return Result.success(result);
-        } catch (Exception e) {
-            return Result.error("移除物品失败: " + e.getMessage());
-        }
+    public Result<Map<String, Object>> removeItem(
+            @RequestParam String playerId,
+            @RequestParam long itemId,
+            @RequestParam int quantity
+    ) {
+        requireNotBlank(playerId, "playerId 不能为空");
+        requirePositive(itemId, "itemId 必须大于0");
+        requirePositive(quantity, "quantity 必须大于0");
+        return Result.success(inventoryService.removeItem(playerId, itemId, quantity));
     }
 
-    // ==================== 剧情系统接口 ====================
-
-    /**
-     * 获取剧情进度
-     *
-     * @param playerId 玩家ID
-     * @return 统一返回结果，包含剧情进度信息
-     */
     @GetMapping("/story/progress")
     public Result<Map<String, Object>> getStoryProgress(@RequestParam String playerId) {
-        try {
-            Map<String, Object> result = storyNodeService.getStoryProgress(playerId);
-            return Result.success(result);
-        } catch (Exception e) {
-            return Result.error("获取剧情进度失败: " + e.getMessage());
+        requireNotBlank(playerId, "playerId 不能为空");
+        return Result.success(storyNodeService.getStoryProgress(playerId));
+    }
+
+    private void validateFreeDialogueRequest(FreeDialogueRequest request) {
+        if (request == null) {
+            throw BusinessException.badRequest("请求体不能为空");
         }
+        requireNotBlank(request.getNpcCode(), "npcCode 不能为空");
+        requireNotBlank(request.getInput(), "input 不能为空");
+        requireNotBlank(request.getPlayerId(), "playerId 不能为空");
+    }
+
+    private void validateExploreRequest(ExploreSceneRequest request) {
+        if (request == null) {
+            throw BusinessException.badRequest("请求体不能为空");
+        }
+        requireNotBlank(request.getPlayerId(), "playerId 不能为空");
+        requireNotBlank(request.getSceneCode(), "sceneCode 不能为空");
+    }
+
+    private void validateCombatTurnRequest(CombatTurnRequest request) {
+        if (request == null) {
+            throw BusinessException.badRequest("请求体不能为空");
+        }
+        requireNotBlank(request.getBattleId(), "battleId 不能为空");
+        requireNotBlank(request.getAction(), "action 不能为空");
+    }
+
+    private void requireNotBlank(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw BusinessException.badRequest(message);
+        }
+    }
+
+    private void requirePositive(long value, String message) {
+        if (value <= 0) {
+            throw BusinessException.badRequest(message);
+        }
+    }
+
+    private void requirePositive(int value, String message) {
+        if (value <= 0) {
+            throw BusinessException.badRequest(message);
+        }
+    }
+
+    private int defaultInt(Integer value) {
+        return value == null ? 0 : value;
     }
 }

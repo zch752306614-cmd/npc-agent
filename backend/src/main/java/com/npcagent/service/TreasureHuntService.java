@@ -1,7 +1,11 @@
 package com.npcagent.service;
 
+import com.npcagent.common.exception.BusinessException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
@@ -16,6 +20,13 @@ import java.util.Random;
  */
 @Service
 public class TreasureHuntService {
+
+    private static final Logger logger = LoggerFactory.getLogger(TreasureHuntService.class);
+    private static final double COMMON_THRESHOLD = 0.6;
+    private static final double RARE_THRESHOLD = 0.85;
+    private static final double EPIC_THRESHOLD = 0.95;
+    private static final String REWARD_PREFIX = "获得：";
+    private static final String REWARD_SEPARATOR = " x";
 
     private final Random random = new Random();
     private final InventoryService inventoryService;
@@ -32,17 +43,14 @@ public class TreasureHuntService {
      * @return 寻宝结果
      */
     public Map<String, Object> startTreasureHunt(String playerId, String location) {
-        // 检查寻宝地点
-        // 生成随机掉落
-        // 计算稀有度
-        // 发放奖励
-        
-        Map<String, Object> result = new java.util.HashMap<>();
+        validateRequest(playerId, location);
+        logger.info("Start treasure hunt, playerId={}, location={}", playerId, location);
+
+        Map<String, Object> result = new HashMap<>();
         result.put("success", true);
         result.put("location", location);
         result.put("treasureFound", true);
-        
-        // 生成随机掉落
+
         String reward = generateRandomReward();
         result.put("reward", reward);
         result.put("rarity", getRarityLevel(reward));
@@ -93,11 +101,11 @@ public class TreasureHuntService {
         
         // 根据概率选择奖励池
         double randomValue = random.nextDouble();
-        if (randomValue < 0.6) {
+        if (randomValue < COMMON_THRESHOLD) {
             return commonRewards[random.nextInt(commonRewards.length)];
-        } else if (randomValue < 0.85) {
+        } else if (randomValue < RARE_THRESHOLD) {
             return rareRewards[random.nextInt(rareRewards.length)];
-        } else if (randomValue < 0.95) {
+        } else if (randomValue < EPIC_THRESHOLD) {
             return epicRewards[random.nextInt(epicRewards.length)];
         } else {
             return legendaryRewards[random.nextInt(legendaryRewards.length)];
@@ -123,9 +131,8 @@ public class TreasureHuntService {
     }
 
     private RewardParsed parseReward(String rewardText) {
-        // 统一解析 "获得：xxx xN"
-        String normalized = rewardText.replace("获得：", "").trim();
-        String[] parts = normalized.split(" x");
+        String normalized = rewardText.replace(REWARD_PREFIX, "").trim();
+        String[] parts = normalized.split(REWARD_SEPARATOR);
         String itemName = parts.length > 0 ? parts[0].trim() : normalized;
         int quantity = 1;
         if (parts.length > 1) {
@@ -136,6 +143,15 @@ public class TreasureHuntService {
             }
         }
         return new RewardParsed(itemName, quantity);
+    }
+
+    private void validateRequest(String playerId, String location) {
+        if (playerId == null || playerId.isBlank()) {
+            throw BusinessException.badRequest("playerId 不能为空");
+        }
+        if (location == null || location.isBlank()) {
+            throw BusinessException.badRequest("location 不能为空");
+        }
     }
 
     private record RewardParsed(String itemName, int quantity) {}
