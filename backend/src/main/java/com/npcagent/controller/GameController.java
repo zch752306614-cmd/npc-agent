@@ -2,9 +2,9 @@ package com.npcagent.controller;
 
 import com.npcagent.common.Result;
 import com.npcagent.common.exception.BusinessException;
-import com.npcagent.controller.dto.CombatTurnRequest;
-import com.npcagent.controller.dto.ExploreSceneRequest;
-import com.npcagent.controller.dto.FreeDialogueRequest;
+import com.npcagent.api.dto.CombatTurnRequest;
+import com.npcagent.api.dto.ExploreSceneRequest;
+import com.npcagent.api.dto.FreeDialogueRequest;
 import com.npcagent.model.DialogueOption;
 import com.npcagent.model.DialogueResult;
 import com.npcagent.service.*;

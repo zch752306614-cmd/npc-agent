@@ -1,4 +1,4 @@
-package com.npcagent.controller.dto;
+package com.npcagent.api.dto;
 
 import lombok.Data;
 

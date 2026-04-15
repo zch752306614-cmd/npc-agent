@@ -1,4 +1,4 @@
-package com.npcagent.controller.dto;
+package com.npcagent.api.dto;
 
 import lombok.Data;
 
@@ -6,7 +6,6 @@ import lombok.Data;
 public class ExploreSceneRequest {
     private String playerId;
     private String sceneCode;
-
     private Integer positionX;
     private Integer positionY;
 }

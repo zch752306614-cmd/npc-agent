@@ -2,8 +2,8 @@ package com.npcagent.service;
 
 import com.npcagent.model.*;
 import com.npcagent.common.exception.BusinessException;
-import com.npcagent.controller.dto.DialogueMessageRequest;
-import com.npcagent.controller.dto.FreeDialogueRequest;
+import com.npcagent.api.dto.DialogueMessageRequest;
+import com.npcagent.api.dto.FreeDialogueRequest;
 import com.npcagent.mapper.DialogueHistoryMapper;
 import com.npcagent.rag.*;
 import org.slf4j.Logger;
