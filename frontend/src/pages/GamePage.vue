@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import BaseModal from '../components/BaseModal.vue';
 import CombatModal from '../modules/live/components/CombatModal.vue';
 import DialoguePanel from '../modules/live/components/DialoguePanel.vue';
+import ExploreResultModal from '../modules/live/components/ExploreResultModal.vue';
 import GameActions from '../modules/live/components/GameActions.vue';
+import InventoryModal from '../modules/live/components/InventoryModal.vue';
 import PlayerStatusBar from '../modules/live/components/PlayerStatusBar.vue';
+import PlayerStatusModal from '../modules/live/components/PlayerStatusModal.vue';
 import SceneSwitcher from '../modules/live/components/SceneSwitcher.vue';
+import StoryProgressModal from '../modules/live/components/StoryProgressModal.vue';
+import TreasureResultModal from '../modules/live/components/TreasureResultModal.vue';
 import { useLiveRoom } from '../modules/live/hooks/useLiveRoom';
 
 const liveRoom = useLiveRoom();
@@ -46,41 +50,36 @@ const liveRoom = useLiveRoom();
       @update:free-input-text="liveRoom.freeInputText = $event"
     />
 
-    <BaseModal title="探索结果" :visible="liveRoom.showExploreModal" @close="liveRoom.showExploreModal = false">
-      <p>{{ liveRoom.exploreResult.title }}</p>
-      <p>{{ liveRoom.exploreResult.description }}</p>
-      <p v-if="liveRoom.exploreResult.reward">奖励：{{ liveRoom.exploreResult.reward }}</p>
-    </BaseModal>
+    <ExploreResultModal
+      :visible="liveRoom.showExploreModal"
+      :result="liveRoom.exploreResult"
+      @close="liveRoom.showExploreModal = false"
+    />
 
-    <BaseModal title="角色状态" :visible="liveRoom.showStatusModal" @close="liveRoom.showStatusModal = false">
-      <p>姓名：{{ liveRoom.player.name }}</p>
-      <p>境界：{{ liveRoom.player.realm }}</p>
-      <p>等级：{{ liveRoom.player.level }}</p>
-      <p>修为等级：{{ liveRoom.player.cultivationLevel }}</p>
-      <p>攻击：{{ liveRoom.player.attack }}，防御：{{ liveRoom.player.defense }}</p>
-    </BaseModal>
+    <PlayerStatusModal
+      :visible="liveRoom.showStatusModal"
+      :player="liveRoom.player"
+      @close="liveRoom.showStatusModal = false"
+    />
 
-    <BaseModal title="背包" :visible="liveRoom.showInventoryModal" @close="liveRoom.showInventoryModal = false">
-      <p v-if="!liveRoom.inventory.length">背包是空的</p>
-      <div v-for="item in liveRoom.inventory" :key="item.id" class="inventory-item">
-        <span>{{ item.name }} x {{ item.quantity }}</span>
-        <button @click="liveRoom.handleUseItem(item.id)">使用</button>
-      </div>
-    </BaseModal>
+    <InventoryModal
+      :visible="liveRoom.showInventoryModal"
+      :items="liveRoom.inventory"
+      @close="liveRoom.showInventoryModal = false"
+      @use-item="liveRoom.handleUseItem"
+    />
 
-    <BaseModal title="寻宝结果" :visible="liveRoom.showTreasureModal" @close="liveRoom.showTreasureModal = false">
-      <p>地点：{{ liveRoom.treasureResult.location }}</p>
-      <p>奖励：{{ liveRoom.treasureResult.reward }}</p>
-      <p>稀有度：{{ liveRoom.treasureResult.rarity }}</p>
-    </BaseModal>
+    <TreasureResultModal
+      :visible="liveRoom.showTreasureModal"
+      :result="liveRoom.treasureResult"
+      @close="liveRoom.showTreasureModal = false"
+    />
 
-    <BaseModal title="剧情进度" :visible="liveRoom.showStoryModal" @close="liveRoom.showStoryModal = false">
-      <template v-if="liveRoom.storyProgress">
-        <p>当前节点：{{ liveRoom.storyProgress.currentNode }}</p>
-        <p>已解锁：{{ liveRoom.storyProgress.unlockedNodes.join('，') }}</p>
-      </template>
-      <p v-else>暂无剧情进度</p>
-    </BaseModal>
+    <StoryProgressModal
+      :visible="liveRoom.showStoryModal"
+      :progress="liveRoom.storyProgress"
+      @close="liveRoom.showStoryModal = false"
+    />
 
     <CombatModal
       :visible="liveRoom.showCombatModal"
@@ -119,12 +118,5 @@ const liveRoom = useLiveRoom();
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.32);
-}
-
-.inventory-item {
-  margin: 8px 0;
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
 }
 </style>

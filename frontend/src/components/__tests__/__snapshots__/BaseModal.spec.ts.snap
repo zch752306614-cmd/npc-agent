@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`BaseModal > matches structural snapshot when visible 1`] = `
+{
+  "title": "测试标题",
+  "body": "正文",
+  "hasClose": true,
+}
+`;

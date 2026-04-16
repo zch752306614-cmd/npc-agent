@@ -1,8 +1,6 @@
 import { computed, onMounted, ref } from 'vue';
 import { DEFAULT_DIALOGUE_OPTIONS, EMPTY_BATTLE, SCENE_NAMES } from '../../../constants/live';
-import { useLiveStore } from '../../../store/live';
-import { usePermissionStore } from '../../../store/permission';
-import { useUserStore } from '../../../store/user';
+import { useLiveStore, usePermissionStore, useUserStore } from '../../../store';
 import {
   changeScene,
   createTreasureHunt,
