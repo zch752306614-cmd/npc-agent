@@ -2,15 +2,14 @@ package com.npcagent.service;
 
 import com.npcagent.model.DialogueOption;
 import com.npcagent.model.StoryNode;
+import com.npcagent.vo.StoryProgressResponse;
 import com.npcagent.mapper.StoryNodeMapper;
 import com.npcagent.mapper.DialogueOptionMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 剧情节点服务
@@ -101,18 +100,18 @@ public class StoryNodeService {
      * @param playerId 玩家ID
      * @return 剧情进度信息
      */
-    public Map<String, Object> getStoryProgress(String playerId) {
+    public StoryProgressResponse getStoryProgress(String playerId) {
         List<StoryNode> nodes = getAllStoryNodes();
         List<String> orderedNodeIds = nodes.stream()
                 .map(StoryNode::getNodeId)
                 .toList();
 
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("playerId", playerId);
-        result.put("currentNode", orderedNodeIds.isEmpty() ? "暂无剧情节点" : orderedNodeIds.get(0));
-        result.put("completedNodes", List.of());
-        result.put("unlockedNodes", orderedNodeIds);
-        result.put("totalNodes", orderedNodeIds.size());
+        StoryProgressResponse result = new StoryProgressResponse();
+        result.setPlayerId(playerId);
+        result.setCurrentNode(orderedNodeIds.isEmpty() ? "暂无剧情节点" : orderedNodeIds.get(0));
+        result.setCompletedNodes(List.of());
+        result.setUnlockedNodes(orderedNodeIds);
+        result.setTotalNodes(orderedNodeIds.size());
         return result;
     }
 }

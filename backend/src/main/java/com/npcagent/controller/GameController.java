@@ -12,6 +12,7 @@ import com.npcagent.vo.ChangeSceneResponse;
 import com.npcagent.vo.ExploreSceneResponse;
 import com.npcagent.vo.InventoryItemResponse;
 import com.npcagent.vo.InventoryOperationResponse;
+import com.npcagent.vo.StoryProgressResponse;
 import com.npcagent.vo.TreasureHuntResponse;
 import com.npcagent.model.DialogueOption;
 import com.npcagent.model.DialogueResult;
@@ -19,7 +20,6 @@ import com.npcagent.service.*;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * 游戏控制器
@@ -196,7 +196,7 @@ public class GameController {
     }
 
     @GetMapping("/story/progress")
-    public Result<Map<String, Object>> getStoryProgress(@RequestParam String playerId) {
+    public Result<StoryProgressResponse> getStoryProgress(@RequestParam String playerId) {
         requireNotBlank(playerId, "playerId 不能为空");
         return Result.success(storyNodeService.getStoryProgress(playerId));
     }
