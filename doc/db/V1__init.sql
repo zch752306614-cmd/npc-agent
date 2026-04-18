@@ -131,8 +131,7 @@ CREATE TABLE IF NOT EXISTS `player_inventory` (
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     INDEX `idx_player_id` (`player_id`),
-    INDEX `idx_item_id` (`item_id`),
-    FOREIGN KEY (`item_id`) REFERENCES `item`(`id`) ON DELETE CASCADE
+    INDEX `idx_item_id` (`item_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='玩家背包表';
 
 -- 创建玩家剧情进度表
