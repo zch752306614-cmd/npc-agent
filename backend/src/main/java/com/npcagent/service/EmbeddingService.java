@@ -23,7 +23,7 @@ import java.util.Map;
  *
  * 实现说明：
  * - 调用Ollama的API进行文本嵌入
- * - 使用bge-m3模型生成768维向量
+ * - 使用bge-m3模型生成1024维向量
  * - 支持错误处理，失败时返回空向量并由上层降级
  */
 @Service
@@ -47,7 +47,7 @@ public class EmbeddingService {
      * 将单个文本转换为向量
      *
      * @param text 输入文本
-     * @return 向量列表（768维）
+     * @return 向量列表（1024维）
      */
     public List<Float> embed(String text) {
         try {
@@ -68,7 +68,9 @@ public class EmbeddingService {
             if (response != null && response.containsKey("embedding")) {
                 @SuppressWarnings("unchecked")
                 List<Double> embedding = (List<Double>) response.get("embedding");
-                logger.debug("Successfully generated embedding for text: {}", text.substring(0, Math.min(50, text.length())));
+                logger.debug("Successfully generated embedding for text: {}, dimension: {}", 
+                        text.substring(0, Math.min(50, text.length())), 
+                        embedding.size());
                 return convertToFloatList(embedding);
             } else {
                 logger.error("Failed to get embedding from Ollama: {}", response);

@@ -9,7 +9,11 @@ import io.milvus.param.IndexType;
 import io.milvus.param.MetricType;
 import io.milvus.param.R;
 import io.milvus.param.RpcStatus;
-import io.milvus.param.collection.*;
+import io.milvus.param.collection.CreateCollectionParam;
+import io.milvus.param.collection.DropCollectionParam;
+import io.milvus.param.collection.FieldType;
+import io.milvus.param.collection.HasCollectionParam;
+import io.milvus.param.collection.LoadCollectionParam;
 import io.milvus.param.dml.InsertParam;
 import io.milvus.param.dml.SearchParam;
 import io.milvus.param.index.CreateIndexParam;
@@ -106,70 +110,91 @@ public class MilvusService {
 
         R<Boolean> hasCollectionResponse = milvusClient.hasCollection(hasCollectionParam);
 
-        if (hasCollectionResponse.getData() == null || !hasCollectionResponse.getData()) {
-            List<FieldType> fields = new ArrayList<>();
-
-            FieldType nodeIdField = FieldType.newBuilder()
-                    .withName(FIELD_NODE_ID)
-                    .withDataType(io.milvus.grpc.DataType.VarChar)
-                    .withMaxLength(256)
-                    .build();
-
-            FieldType contentField = FieldType.newBuilder()
-                    .withName(FIELD_CONTENT)
-                    .withDataType(io.milvus.grpc.DataType.VarChar)
-                    .withMaxLength(1024)
-                    .build();
-
-            FieldType vectorField = FieldType.newBuilder()
-                    .withName(FIELD_VECTOR)
-                    .withDataType(io.milvus.grpc.DataType.FloatVector)
-                    .withDimension(milvusConfig.getEmbeddingDimension())
-                    .build();
-
-            fields.add(nodeIdField);
-            fields.add(contentField);
-            fields.add(vectorField);
-
-            CreateCollectionParam createCollectionParam = CreateCollectionParam.newBuilder()
-                    .withCollectionName(collectionName)
-                    .withDescription("NPC Agent vector storage")
-                    .withFieldTypes(fields)
-                    .build();
-
-            R<RpcStatus> createResponse = milvusClient.createCollection(createCollectionParam);
-            if (createResponse.getStatus() != R.Status.Success.getCode()) {
-                logger.error("Failed to create collection: {}", createResponse.getMessage());
-                return;
+        if (hasCollectionResponse.getData() != null && hasCollectionResponse.getData()) {
+            // 直接删除并重新创建集合，以确保维度正确
+            logger.info("Collection already exists, recreating with correct dimension: {}", milvusConfig.getEmbeddingDimension());
+            try {
+                // 删除现有集合
+                DropCollectionParam dropParam = DropCollectionParam.newBuilder()
+                        .withCollectionName(collectionName)
+                        .build();
+                R<RpcStatus> dropResponse = milvusClient.dropCollection(dropParam);
+                if (dropResponse.getStatus() != R.Status.Success.getCode()) {
+                    logger.error("Failed to drop collection: {}", dropResponse.getMessage());
+                    return;
+                }
+            } catch (Exception e) {
+                logger.error("Error dropping collection: {}", e.getMessage());
             }
-
-            CreateIndexParam indexParam = CreateIndexParam.newBuilder()
-                    .withCollectionName(collectionName)
-                    .withFieldName(FIELD_VECTOR)
-                    .withIndexType(IndexType.IVF_FLAT)
-                    .withMetricType(MetricType.COSINE)
-                    .withExtraParam("{\"nlist\":1024}")
-                    .build();
-
-            R<RpcStatus> indexResponse = milvusClient.createIndex(indexParam);
-            if (indexResponse.getStatus() != R.Status.Success.getCode()) {
-                logger.error("Failed to create index: {}", indexResponse.getMessage());
-                return;
-            }
-
-            R<RpcStatus> loadResponse = milvusClient.loadCollection(LoadCollectionParam.newBuilder()
-                    .withCollectionName(collectionName)
-                    .build());
-
-            if (loadResponse.getStatus() != R.Status.Success.getCode()) {
-                logger.error("Failed to load collection: {}", loadResponse.getMessage());
-                return;
-            }
-
-            logger.info("Created collection: {}", collectionName);
-        } else {
-            logger.info("Collection already exists: {}", collectionName);
         }
+        
+        // 创建新集合
+        createCollection(collectionName);
+    }
+
+    private void createCollection(String collectionName) {
+        List<FieldType> fields = new ArrayList<>();
+
+        FieldType nodeIdField = FieldType.newBuilder()
+                .withName(FIELD_NODE_ID)
+                .withDataType(io.milvus.grpc.DataType.VarChar)
+                .withMaxLength(256)
+                .withPrimaryKey(true)
+                .withAutoID(false)
+                .build();
+
+        FieldType contentField = FieldType.newBuilder()
+                .withName(FIELD_CONTENT)
+                .withDataType(io.milvus.grpc.DataType.VarChar)
+                .withMaxLength(1024)
+                .build();
+
+        FieldType vectorField = FieldType.newBuilder()
+                .withName(FIELD_VECTOR)
+                .withDataType(io.milvus.grpc.DataType.FloatVector)
+                .withDimension(milvusConfig.getEmbeddingDimension())
+                .build();
+
+        fields.add(nodeIdField);
+        fields.add(contentField);
+        fields.add(vectorField);
+
+        CreateCollectionParam createCollectionParam = CreateCollectionParam.newBuilder()
+                .withCollectionName(collectionName)
+                .withDescription("NPC Agent vector storage")
+                .withFieldTypes(fields)
+                .build();
+
+        R<RpcStatus> createResponse = milvusClient.createCollection(createCollectionParam);
+        if (createResponse.getStatus() != R.Status.Success.getCode()) {
+            logger.error("Failed to create collection: {}", createResponse.getMessage());
+            return;
+        }
+
+        CreateIndexParam indexParam = CreateIndexParam.newBuilder()
+                .withCollectionName(collectionName)
+                .withFieldName(FIELD_VECTOR)
+                .withIndexType(IndexType.IVF_FLAT)
+                .withMetricType(MetricType.COSINE)
+                .withExtraParam("{\"nlist\":1024}")
+                .build();
+
+        R<RpcStatus> indexResponse = milvusClient.createIndex(indexParam);
+        if (indexResponse.getStatus() != R.Status.Success.getCode()) {
+            logger.error("Failed to create index: {}", indexResponse.getMessage());
+            return;
+        }
+
+        R<RpcStatus> loadResponse = milvusClient.loadCollection(LoadCollectionParam.newBuilder()
+                .withCollectionName(collectionName)
+                .build());
+
+        if (loadResponse.getStatus() != R.Status.Success.getCode()) {
+            logger.error("Failed to load collection: {}", loadResponse.getMessage());
+            return;
+        }
+
+        logger.info("Created collection: {} with dimension: {}", collectionName, milvusConfig.getEmbeddingDimension());
     }
 
     public void insertVector(String nodeId, String content, List<Float> vector) {

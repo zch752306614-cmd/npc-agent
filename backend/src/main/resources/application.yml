@@ -46,7 +46,7 @@ milvus:
   port: 19530
   database: npcagent
   collection-name: npc_agent_vectors
-  embedding-dimension: 768
+  embedding-dimension: 1024
 
 # Ollama Configuration
 ollama:
