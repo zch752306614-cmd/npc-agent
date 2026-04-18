@@ -350,6 +350,7 @@ public class RAGStoryManager {
         if (option == null) {
             logger.warn("Dialogue option not found: {}", optionId);
             result.setNpcResponse("（沉默）");
+            result.setNextOptions(storyNodeService.getAvailableDialogueOptions(npcCode, playerId));
             return result;
         }
 
@@ -369,6 +370,14 @@ public class RAGStoryManager {
         result.setTriggeredNodeId(option.getNextNodeId());
         result.setDialogueType("fixed");
         result.setStoryAdvance(option.getNextNodeId() != null);
+
+        // 设置后续对话选项（基于当前选项的下一个节点）
+        if (option.getNextNodeId() != null) {
+            List<DialogueOption> nextOptions = storyNodeService.getDialogueOptionsByNodeId(option.getNextNodeId());
+            result.setNextOptions(nextOptions);
+        } else {
+            result.setNextOptions(storyNodeService.getAvailableDialogueOptions(npcCode, playerId));
+        }
 
         // 更新对话历史
         updateDialogueHistory(playerId, npcCode, option.getText(), response);

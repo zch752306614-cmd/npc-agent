@@ -54,8 +54,9 @@ public class StoryNodeService {
      */
     public List<DialogueOption> getAvailableDialogueOptions(String npcCode, String playerId) {
         try {
-            // 查询该NPC的所有可用对话选项
-            return dialogueOptionMapper.selectByNpcCode(npcCode);
+            // 初始版本：只返回初始节点的对话选项
+            // 后续可以根据玩家进度返回不同节点的选项
+            return dialogueOptionMapper.selectByNodeId("node_1_1");
         } catch (Exception e) {
             logger.error("Error getting dialogue options for NPC: {}", npcCode, e);
             return List.of();
@@ -74,6 +75,21 @@ public class StoryNodeService {
         } catch (Exception e) {
             logger.error("Error getting dialogue option by id: {}", optionId, e);
             return null;
+        }
+    }
+
+    /**
+     * 根据剧情节点ID获取对话选项
+     *
+     * @param nodeId 剧情节点ID
+     * @return 对话选项列表
+     */
+    public List<DialogueOption> getDialogueOptionsByNodeId(String nodeId) {
+        try {
+            return dialogueOptionMapper.selectByNodeId(nodeId);
+        } catch (Exception e) {
+            logger.error("Error getting dialogue options by node id: {}", nodeId, e);
+            return List.of();
         }
     }
 

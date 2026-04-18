@@ -34,7 +34,7 @@ export function useLiveRoom() {
   const localLoading = ref(false);
 
   const currentSceneName = computed(() => SCENE_NAMES[userStore.player.currentScene] || '未知地点');
-  const isLoading = computed(() => localLoading.value || isHttpLoading.value > 0);
+  const isLoading = computed(() => localLoading.value);
 
   async function runWithLoading(task: () => Promise<void>) {
     localLoading.value = true;
@@ -201,6 +201,14 @@ export function useLiveRoom() {
 
   onMounted(() => {
     if (permissionStore.canOperateLiveRoom) {
+      // 添加开场剧情
+      if (liveStore.dialogueHistory.length === 0) {
+        // 初始开场白
+        liveStore.dialogueHistory.push({
+          speaker: 'npc',
+          text: '年轻人，你来了。我是镇上的长老，你就是那个被选中的孩子吧？'
+        });
+      }
       loadDialogueOptions();
     }
   });
