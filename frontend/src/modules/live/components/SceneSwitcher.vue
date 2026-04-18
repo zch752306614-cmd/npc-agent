@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { type Ref } from 'vue';
+
 defineProps<{
   sceneNames: Record<string, string>;
   currentScene: string;
-  disabled: boolean;
+  disabled: Ref<boolean>;
 }>();
 
 defineEmits<{ change: [sceneCode: string] }>();
@@ -15,7 +17,7 @@ defineEmits<{ change: [sceneCode: string] }>();
       :key="code"
       class="scene-btn"
       :class="{ active: currentScene === code }"
-      :disabled="disabled || currentScene === code"
+      :disabled="disabled.value || currentScene === code"
       @click="$emit('change', code)"
     >
       {{ name }}

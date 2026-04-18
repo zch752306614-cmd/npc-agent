@@ -31,13 +31,23 @@ export function useLiveRoom() {
   const userStore = useUserStore();
   const permissionStore = usePermissionStore();
   const liveStore = useLiveStore();
-  const localLoading = ref(false);
+
+  // 直接使用 ref 而不是 computed
+  const isLoading = ref(false);
 
   const currentSceneName = computed(() => SCENE_NAMES[userStore.player.currentScene] || '未知地点');
-  const isLoading = computed(() => localLoading.value);
+
+  // 为了保持响应式，使用 computed 包装 isLoading
+  const isLoadingComputed = computed(() => isLoading.value);
+
+  // 为了保持响应式，使用 computed 包装 freeInputText
+  const freeInputText = computed({
+    get: () => liveStore.freeInputText.value,
+    set: (value) => { liveStore.freeInputText.value = value; }
+  });
 
   async function runWithLoading(task: () => Promise<void>) {
-    localLoading.value = true;
+    isLoading.value = true;
     try {
       await task();
     } catch (error) {
@@ -45,14 +55,24 @@ export function useLiveRoom() {
       console.error(error);
       window.alert(error instanceof Error ? error.message : '操作失败，请重试');
     } finally {
-      localLoading.value = false;
+      isLoading.value = false;
     }
   }
 
   async function loadDialogueOptions() {
+    console.log('开始加载对话选项...');
+    console.log('当前NPC:', liveStore.currentNpc.code);
+    console.log('当前玩家ID:', userStore.playerId);
     await runWithLoading(async () => {
-      const options = await getDialogueOptions(liveStore.currentNpc.code, userStore.playerId);
-      liveStore.setDialogueOptions(options || DEFAULT_DIALOGUE_OPTIONS);
+      try {
+        const options = await getDialogueOptions(liveStore.currentNpc.code, userStore.playerId);
+        console.log('获取到的对话选项:', options);
+        liveStore.setDialogueOptions(options || DEFAULT_DIALOGUE_OPTIONS);
+        console.log('设置后的对话选项:', liveStore.dialogueOptions);
+      } catch (error) {
+        console.error('加载对话选项失败:', error);
+        liveStore.setDialogueOptions(DEFAULT_DIALOGUE_OPTIONS);
+      }
     });
   }
 
@@ -69,22 +89,31 @@ export function useLiveRoom() {
   }
 
   async function handleSendFreeInput() {
-    const text = liveStore.freeInputText.trim();
+    console.log('调用 handleSendFreeInput');
+    const text = (liveStore.freeInputText.value || '').trim(); // 直接从 liveStore 中获取，添加默认值
+    console.log('当前输入文本:', text);
     if (!text) return;
 
     await runWithLoading(async () => {
+      console.log('开始处理发送请求');
       liveStore.dialogueHistory.push({ speaker: 'player', text });
+      console.log('添加玩家消息到对话历史');
       const result = await submitFreeDialogue(
         liveStore.currentNpc.code,
         text,
-        liveStore.dialogueHistory,
+        liveStore.dialogueHistory.value, // 传递实际的数组，而不是 ref 对象
         userStore.playerId
       );
+      console.log('API 调用成功，返回结果:', result);
       liveStore.dialogueHistory.push({ speaker: 'npc', text: result.npcResponse });
+      console.log('添加 NPC 回复到对话历史');
       if (result.storyAdvance && result.nextOptions) {
         liveStore.setDialogueOptions(result.nextOptions);
+        console.log('更新对话选项');
       }
-      liveStore.freeInputText = '';
+      liveStore.freeInputText.value = ''; // 直接操作liveStore清空输入框
+      console.log('清空输入框');
+      console.log('清空后liveStore.freeInputText.value:', liveStore.freeInputText.value);
     });
   }
 
@@ -219,7 +248,7 @@ export function useLiveRoom() {
     currentNpc: liveStore.currentNpc,
     dialogueOptions: liveStore.dialogueOptions,
     dialogueHistory: liveStore.dialogueHistory,
-    freeInputText: liveStore.freeInputText,
+    freeInputText, // 返回计算属性
     inventory: liveStore.inventory,
     storyProgress: liveStore.storyProgress,
     battleState: liveStore.battleState,
@@ -232,7 +261,7 @@ export function useLiveRoom() {
     showTreasureModal: liveStore.showTreasureModal,
     showStoryModal: liveStore.showStoryModal,
     currentSceneName,
-    isLoading,
+    isLoading: isLoadingComputed, // 返回计算属性，确保响应式
     handleSelectFixedOption,
     handleSendFreeInput,
     handleChangeScene,

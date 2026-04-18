@@ -1,14 +1,21 @@
 <script setup lang="ts">
+import { type Ref } from 'vue';
 import type { DialogueMessage, DialogueOption } from '../../../types/live';
 
 const props = defineProps<{
-  loading: boolean;
+  loading: Ref<boolean>;
   options: DialogueOption[];
   history: DialogueMessage[];
   npcName: string;
   playerName: string;
-  freeInputText: string;
+  freeInputText: string | Ref<string>; // 接受字符串或 Ref<string>
 }>();
+
+// 添加调试信息
+console.log('DialoguePanel 组件加载，props:', props);
+console.log('对话选项数量:', props.options.length);
+console.log('对话选项内容:', props.options);
+console.log('loading 状态:', props.loading);
 
 const emit = defineEmits<{
   selectOption: [optionId: string];
@@ -19,6 +26,14 @@ const emit = defineEmits<{
 function updateInput(value: string) {
   emit('update:freeInputText', value);
 }
+
+// 添加发送按钮点击的调试信息
+function handleSendInput() {
+  console.log('点击发送按钮');
+  console.log('当前输入文本:', props.freeInputText);
+  console.log('loading 状态:', props.loading.value);
+  emit('sendInput');
+}
 </script>
 
 <template>
@@ -28,7 +43,7 @@ function updateInput(value: string) {
         <strong>{{ msg.speaker === 'npc' ? npcName : playerName }}：</strong>
         <span>{{ msg.text }}</span>
       </div>
-      <div v-if="loading" class="loading">正在思考...</div>
+      <div v-if="loading.value" class="loading">正在思考...</div>
     </div>
 
     <div class="dialogue-input-area">
@@ -36,7 +51,7 @@ function updateInput(value: string) {
         <button
           v-for="option in options"
           :key="option.optionId"
-          :disabled="loading || !option.available"
+          :disabled="loading.value || !option.available"
           class="option-button"
           @click="emit('selectOption', option.optionId)"
         >
@@ -45,13 +60,13 @@ function updateInput(value: string) {
       </div>
       <div class="free-input">
         <input
-          :value="props.freeInputText"
-          :disabled="loading"
+          :value="typeof freeInputText === 'object' ? freeInputText.value : freeInputText"
+          :disabled="loading.value"
           placeholder="输入你想说的话..."
           @input="(e) => updateInput((e.target as HTMLInputElement).value)"
-          @keyup.enter="emit('sendInput')"
+          @keyup.enter="handleSendInput"
         />
-        <button :disabled="loading || !props.freeInputText.trim()" @click="emit('sendInput')">发送</button>
+        <button :disabled="loading.value || !((typeof freeInputText === 'object' ? freeInputText.value : freeInputText) || '').trim()" @click="handleSendInput">发送</button>
       </div>
     </div>
   </div>

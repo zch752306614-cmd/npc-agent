@@ -1,5 +1,7 @@
 <script setup lang="ts">
-defineProps<{ disabled: boolean }>();
+import { type Ref } from 'vue';
+
+defineProps<{ disabled: Ref<boolean> }>();
 
 defineEmits<{
   explore: [];
@@ -12,11 +14,11 @@ defineEmits<{
 
 <template>
   <div class="game-actions">
-    <button class="action-btn" :disabled="disabled" @click="$emit('explore')">🔍 探索</button>
+    <button class="action-btn" :disabled="disabled.value" @click="$emit('explore')">🔍 探索</button>
     <button class="action-btn" @click="$emit('status')">📊 状态</button>
-    <button class="action-btn" :disabled="disabled" @click="$emit('inventory')">🎒 背包</button>
-    <button class="action-btn" :disabled="disabled" @click="$emit('treasure')">💎 寻宝</button>
-    <button class="action-btn" :disabled="disabled" @click="$emit('story')">📖 剧情</button>
+    <button class="action-btn" :disabled="disabled.value" @click="$emit('inventory')">🎒 背包</button>
+    <button class="action-btn" :disabled="disabled.value" @click="$emit('treasure')">💎 寻宝</button>
+    <button class="action-btn" :disabled="disabled.value" @click="$emit('story')">📖 剧情</button>
   </div>
 </template>
 
